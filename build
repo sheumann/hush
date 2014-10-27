@@ -1,6 +1,7 @@
-gcc -Wp,-MD,shell/.hush.o.d -std=gnu99  -Wall -o hush \
+cc -std=c99 \
+-Wall -Wno-format-security -Wno-comment -o hush \
 -Iinclude  -include include/autoconf.h \
--Dhush_main=main -D_GNU_SOURCE -DNDEBUG  -D"BB_VER=KBUILD_STR(1.22.1)" -D"KBUILD_STR(s)=#s" \
+-Dhush_main=main -DNDEBUG  -D"BB_VER=KBUILD_STR(1.22.1)" -D"KBUILD_STR(s)=#s" \
 shell/hush.c \
 shell/match.c \
 shell/math.c \

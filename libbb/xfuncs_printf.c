@@ -251,7 +251,7 @@ off_t FAST_FUNC xlseek(int fd, off_t offset, int whence)
 	off_t off = lseek(fd, offset, whence);
 	if (off == (off_t)-1) {
 		if (whence == SEEK_SET)
-			bb_perror_msg_and_die("lseek(%"OFF_FMT"u)", offset);
+			bb_perror_msg_and_die("lseek(%"PRIdMAX")", (intmax_t)offset);
 		bb_perror_msg_and_die("lseek");
 	}
 	return off;

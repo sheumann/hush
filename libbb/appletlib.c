@@ -16,4 +16,5 @@
 
 void FAST_FUNC bb_show_usage(void)
 {
+	xfunc_die();
 }
