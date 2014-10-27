@@ -408,6 +408,8 @@ char *xrealloc_getcwd_or_warn(char *cwd) FAST_FUNC;
 
 char *xmalloc_follow_symlinks(const char *path) FAST_FUNC RETURNS_MALLOC;
 
+void *mempcpy(void *dst, const void *src, size_t len);
+
 
 enum {
 	/* bb_signals(BB_FATAL_SIGS, handler) catches all signals which

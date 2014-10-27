@@ -19,7 +19,7 @@
 
 #define BANNER "BusyBox v" BB_VER " (" BB_EXTRA_VERSION ")"
 
-const char bb_banner[] ALIGN1 = BANNER;
+const char bb_banner[] ALIGN1 = "BusyBox";
 
 
 const char bb_msg_memory_exhausted[] ALIGN1 = "out of memory";

@@ -377,6 +377,8 @@ struct variable;
 
 static const char hush_version_str[] ALIGN1 = "HUSH_VERSION="BB_VER;
 
+const char *applet_name = "hush";
+
 /* This supports saving pointers malloced in vfork child,
  * to be freed in the parent.
  */
@@ -1596,8 +1598,10 @@ static int check_and_run_traps(void)
 	while (1) {
 		int sig;
 
+#if HAVE_SIGISEMPTYSET
 		if (sigisemptyset(&G.pending_set))
 			break;
+#endif
 		sig = 0;
 		do {
 			sig++;
@@ -9055,11 +9059,22 @@ static int FAST_FUNC builtin_wait(char **argv)
 			sigfillset(&allsigs);
 			sigprocmask(SIG_SETMASK, &allsigs, &oldset);
 
+#if HAVE_SIGISEMPTYSET
 			if (!sigisemptyset(&G.pending_set)) {
 				/* Crap! we raced with some signal! */
 			//	sig = 0;
 				goto restore;
 			}
+#else
+			sig = 0;
+			do {
+				sig++;
+				if (sigismember(&G.pending_set, sig)) {
+					/* Crap! we raced with some signal! */
+					goto restore;
+				}
+			} while (sig < NSIG);
+#endif
 
 			checkjobs(NULL); /* waitpid(WNOHANG) inside */
 			if (errno == ECHILD) {
