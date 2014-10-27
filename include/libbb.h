@@ -1035,6 +1035,10 @@ void bb_sanitize_stdio(void) FAST_FUNC;
 int sanitize_env_if_suid(void) FAST_FUNC;
 
 
+pid_t vfork_and_run(void (*fn)(void*) NORETURN, void *arg);
+pid_t xvfork_and_run(void (*fn)(void*) NORETURN, void *arg);
+
+
 char* single_argv(char **argv) FAST_FUNC;
 extern const char *const bb_argv_dash[]; /* "-", NULL */
 extern const char *opt_complementary;

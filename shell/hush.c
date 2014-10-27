@@ -5827,6 +5827,13 @@ static void parse_and_run_file(FILE *f)
 }
 
 #if ENABLE_HUSH_TICK
+static void xforked_child(void *) NORETURN;
+struct child_args2 {
+	int *channel;
+	const char *s;
+	char ***to_free_p;
+};
+
 static FILE *generate_stream_from_string(const char *s, pid_t *pid_p)
 {
 	pid_t pid;
@@ -5836,82 +5843,18 @@ static FILE *generate_stream_from_string(const char *s, pid_t *pid_p)
 # endif
 
 	xpipe(channel);
-	pid = BB_MMU ? xfork() : xvfork();
+	
+	struct child_args2 args_struct = {
+		channel,
+		s,
+		&to_free,
+	};
+	pid = BB_MMU ? xfork() : xvfork_and_run(xforked_child, &args_struct);
+#if BB_MMU
 	if (pid == 0) { /* child */
-		disable_restore_tty_pgrp_on_exit();
-		/* Process substitution is not considered to be usual
-		 * 'command execution'.
-		 * SUSv3 says ctrl-Z should be ignored, ctrl-C should not.
-		 */
-		bb_signals(0
-			+ (1 << SIGTSTP)
-			+ (1 << SIGTTIN)
-			+ (1 << SIGTTOU)
-			, SIG_IGN);
-		CLEAR_RANDOM_T(&G.random_gen); /* or else $RANDOM repeats in child */
-		close(channel[0]); /* NB: close _first_, then move fd! */
-		xmove_fd(channel[1], 1);
-		/* Prevent it from trying to handle ctrl-z etc */
-		IF_HUSH_JOB(G.run_list_level = 1;)
-		/* Awful hack for `trap` or $(trap).
-		 *
-		 * http://www.opengroup.org/onlinepubs/009695399/utilities/trap.html
-		 * contains an example where "trap" is executed in a subshell:
-		 *
-		 * save_traps=$(trap)
-		 * ...
-		 * eval "$save_traps"
-		 *
-		 * Standard does not say that "trap" in subshell shall print
-		 * parent shell's traps. It only says that its output
-		 * must have suitable form, but then, in the above example
-		 * (which is not supposed to be normative), it implies that.
-		 *
-		 * bash (and probably other shell) does implement it
-		 * (traps are reset to defaults, but "trap" still shows them),
-		 * but as a result, "trap" logic is hopelessly messed up:
-		 *
-		 * # trap
-		 * trap -- 'echo Ho' SIGWINCH  <--- we have a handler
-		 * # (trap)        <--- trap is in subshell - no output (correct, traps are reset)
-		 * # true | trap   <--- trap is in subshell - no output (ditto)
-		 * # echo `true | trap`    <--- in subshell - output (but traps are reset!)
-		 * trap -- 'echo Ho' SIGWINCH
-		 * # echo `(trap)`         <--- in subshell in subshell - output
-		 * trap -- 'echo Ho' SIGWINCH
-		 * # echo `true | (trap)`  <--- in subshell in subshell in subshell - output!
-		 * trap -- 'echo Ho' SIGWINCH
-		 *
-		 * The rules when to forget and when to not forget traps
-		 * get really complex and nonsensical.
-		 *
-		 * Our solution: ONLY bare $(trap) or `trap` is special.
-		 */
-		s = skip_whitespace(s);
-		if (strncmp(s, "trap", 4) == 0
-		 && skip_whitespace(s + 4)[0] == '\0'
-		) {
-			static const char *const argv[] = { NULL, NULL };
-			builtin_trap((char**)argv);
-			exit(0); /* not _exit() - we need to fflush */
-		}
-# if BB_MMU
-		reset_traps_to_defaults();
-		parse_and_run_string(s);
-		_exit(G.last_exitcode);
-# else
-	/* We re-execute after vfork on NOMMU. This makes this script safe:
-	 * yes "0123456789012345678901234567890" | dd bs=32 count=64k >BIG
-	 * huge=`cat BIG` # was blocking here forever
-	 * echo OK
-	 */
-		re_execute_shell(&to_free,
-				s,
-				G.global_argv[0],
-				G.global_argv + 1,
-				NULL);
-# endif
+		xforked_child(&args_struct);
 	}
+#endif
 
 	/* parent */
 	*pid_p = pid;
@@ -5929,6 +5872,85 @@ static FILE *generate_stream_from_string(const char *s, pid_t *pid_p)
 	close_on_exec_on(channel[0]);
 	return xfdopen_for_read(channel[0]);
 }
+
+static void xforked_child(void *args_struct) {
+	struct child_args2 *args = (struct child_args2 *)args_struct;
+
+	disable_restore_tty_pgrp_on_exit();
+	/* Process substitution is not considered to be usual
+	 * 'command execution'.
+	 * SUSv3 says ctrl-Z should be ignored, ctrl-C should not.
+	 */
+	bb_signals(0
+		+ (1 << SIGTSTP)
+		+ (1 << SIGTTIN)
+		+ (1 << SIGTTOU)
+		, SIG_IGN);
+	CLEAR_RANDOM_T(&G.random_gen); /* or else $RANDOM repeats in child */
+	close(args->channel[0]); /* NB: close _first_, then move fd! */
+	xmove_fd(args->channel[1], 1);
+	/* Prevent it from trying to handle ctrl-z etc */
+	IF_HUSH_JOB(G.run_list_level = 1;)
+	/* Awful hack for `trap` or $(trap).
+	 *
+	 * http://www.opengroup.org/onlinepubs/009695399/utilities/trap.html
+	 * contains an example where "trap" is executed in a subshell:
+	 *
+	 * save_traps=$(trap)
+	 * ...
+	 * eval "$save_traps"
+	 *
+	 * Standard does not say that "trap" in subshell shall print
+	 * parent shell's traps. It only says that its output
+	 * must have suitable form, but then, in the above example
+	 * (which is not supposed to be normative), it implies that.
+	 *
+	 * bash (and probably other shell) does implement it
+	 * (traps are reset to defaults, but "trap" still shows them),
+	 * but as a result, "trap" logic is hopelessly messed up:
+	 *
+	 * # trap
+	 * trap -- 'echo Ho' SIGWINCH  <--- we have a handler
+	 * # (trap)        <--- trap is in subshell - no output (correct, traps are reset)
+	 * # true | trap   <--- trap is in subshell - no output (ditto)
+	 * # echo `true | trap`    <--- in subshell - output (but traps are reset!)
+	 * trap -- 'echo Ho' SIGWINCH
+	 * # echo `(trap)`         <--- in subshell in subshell - output
+	 * trap -- 'echo Ho' SIGWINCH
+	 * # echo `true | (trap)`  <--- in subshell in subshell in subshell - output!
+	 * trap -- 'echo Ho' SIGWINCH
+	 *
+	 * The rules when to forget and when to not forget traps
+	 * get really complex and nonsensical.
+	 *
+	 * Our solution: ONLY bare $(trap) or `trap` is special.
+	 */
+	args->s = skip_whitespace(args->s);
+	if (strncmp(args->s, "trap", 4) == 0
+	 && skip_whitespace(args->s + 4)[0] == '\0'
+	) {
+		static const char *const argv[] = { NULL, NULL };
+		builtin_trap((char**)argv);
+		exit(0); /* not _exit() - we need to fflush */
+	}
+# if BB_MMU
+	reset_traps_to_defaults();
+	parse_and_run_string(s);
+	_exit(G.last_exitcode);
+# else
+/* We re-execute after vfork on NOMMU. This makes this script safe:
+ * yes "0123456789012345678901234567890" | dd bs=32 count=64k >BIG
+ * huge=`cat BIG` # was blocking here forever
+ * echo OK
+ */
+	re_execute_shell(args->to_free_p,
+			args->s,
+			G.global_argv[0],
+			G.global_argv + 1,
+			NULL);
+# endif
+}
+
 
 /* Return code is exit status of the process that is run. */
 static int process_command_subs(o_string *dest, const char *s)
@@ -6926,6 +6948,17 @@ static int redirect_and_varexp_helper(char ***new_env_p,
 	}
 	return rcode;
 }
+
+static void forked_child(void *) NORETURN;
+struct child_args {
+	struct pipe **pi_p;
+	int *next_infd_p;
+	struct fd_pair *pipefds_p;
+	struct command **command_p;
+	volatile nommu_save_t *nommu_save_p;
+	char ***argv_expanded_p;
+};
+
 static NOINLINE int run_pipe(struct pipe *pi)
 {
 	static const char *const null_ptr = NULL;
@@ -7191,52 +7224,21 @@ static NOINLINE int run_pipe(struct pipe *pi)
 		if (cmd_no < pi->num_cmds)
 			xpiped_pair(pipefds);
 
-		command->pid = BB_MMU ? fork() : vfork();
+		struct child_args args_struct = {
+			&pi,
+			&next_infd,
+			&pipefds,
+			&command,
+			&nommu_save,
+			&argv_expanded,
+		};
+
+		command->pid = BB_MMU ? fork() : vfork_and_run(forked_child, &args_struct);
+#if BB_MMU
 		if (!command->pid) { /* child */
-#if ENABLE_HUSH_JOB
-			disable_restore_tty_pgrp_on_exit();
-			CLEAR_RANDOM_T(&G.random_gen); /* or else $RANDOM repeats in child */
-
-			/* Every child adds itself to new process group
-			 * with pgid == pid_of_first_child_in_pipe */
-			if (G.run_list_level == 1 && G_interactive_fd) {
-				pid_t pgrp;
-				pgrp = pi->pgrp;
-				if (pgrp < 0) /* true for 1st process only */
-					pgrp = getpid();
-				if (setpgid(0, pgrp) == 0
-				 && pi->followup != PIPE_BG
-				 && G_saved_tty_pgrp /* we have ctty */
-				) {
-					/* We do it in *every* child, not just first,
-					 * to avoid races */
-					tcsetpgrp(G_interactive_fd, pgrp);
-				}
-			}
-#endif
-			if (pi->alive_cmds == 0 && pi->followup == PIPE_BG) {
-				/* 1st cmd in backgrounded pipe
-				 * should have its stdin /dev/null'ed */
-				close(0);
-				if (open(bb_dev_null, O_RDONLY))
-					xopen("/", O_RDONLY);
-			} else {
-				xmove_fd(next_infd, 0);
-			}
-			xmove_fd(pipefds.wr, 1);
-			if (pipefds.rd > 1)
-				close(pipefds.rd);
-			/* Like bash, explicit redirects override pipes,
-			 * and the pipe fd is available for dup'ing. */
-			if (setup_redirects(command, NULL))
-				_exit(1);
-
-			/* Stores to nommu_save list of env vars putenv'ed
-			 * (NOMMU, on MMU we don't need that) */
-			/* cast away volatility... */
-			pseudo_exec((nommu_save_t*) &nommu_save, command, argv_expanded);
-			/* pseudo_exec() does not return */
+			forked_child(&args_struct);
 		}
+#endif
 
 		/* parent or error */
 #if ENABLE_HUSH_FAST
@@ -7283,6 +7285,56 @@ static NOINLINE int run_pipe(struct pipe *pi)
 	debug_printf_exec("run_pipe return -1 (%u children started)\n", pi->alive_cmds);
 	return -1;
 }
+	
+
+static void forked_child(void *args_struct) {
+	struct child_args *args = (struct child_args *)args_struct;
+
+#if ENABLE_HUSH_JOB
+	disable_restore_tty_pgrp_on_exit();
+	CLEAR_RANDOM_T(&G.random_gen); /* or else $RANDOM repeats in child */
+
+	/* Every child adds itself to new process group
+	 * with pgid == pid_of_first_child_in_pipe */
+	if (G.run_list_level == 1 && G_interactive_fd) {
+		pid_t pgrp;
+		pgrp = (*args->pi_p)->pgrp;
+		if (pgrp < 0) /* true for 1st process only */
+			pgrp = getpid();
+		if (setpgid(0, pgrp) == 0
+		 && (*args->pi_p)->followup != PIPE_BG
+		 && G_saved_tty_pgrp /* we have ctty */
+		) {
+			/* We do it in *every* child, not just first,
+			 * to avoid races */
+			tcsetpgrp(G_interactive_fd, pgrp);
+		}
+	}
+#endif
+	if ((*args->pi_p)->alive_cmds == 0 && (*args->pi_p)->followup == PIPE_BG) {
+		/* 1st cmd in backgrounded pipe
+		 * should have its stdin /dev/null'ed */
+		close(0);
+		if (open(bb_dev_null, O_RDONLY))
+			xopen("/", O_RDONLY);
+	} else {
+		xmove_fd(*args->next_infd_p, 0);
+	}
+	xmove_fd(args->pipefds_p->wr, 1);
+	if (args->pipefds_p->rd > 1)
+		close(args->pipefds_p->rd);
+	/* Like bash, explicit redirects override pipes,
+	 * and the pipe fd is available for dup'ing. */
+	if (setup_redirects(*args->command_p, NULL))
+		_exit(1);
+
+	/* Stores to nommu_save list of env vars putenv'ed
+	 * (NOMMU, on MMU we don't need that) */
+	/* cast away volatility... */
+	pseudo_exec((nommu_save_t*) args->nommu_save_p, *args->command_p, *args->argv_expanded_p);
+	/* pseudo_exec() does not return */
+}
+
 
 /* NB: called by pseudo_exec, and therefore must not modify any
  * global data until exec/_exit (we can be a child after vfork!) */
