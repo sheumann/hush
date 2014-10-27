@@ -544,4 +544,11 @@ extern int vasprintf(char **string_ptr, const char *format, va_list p) FAST_FUNC
 extern ssize_t getline(char **lineptr, size_t *n, FILE *stream) FAST_FUNC;
 #endif
 
+
+#if NSIG <= 32
+typedef unsigned long sigmask_t;
+#else
+typedef unsigned long long sigmask_t;
+#endif
+
 #endif

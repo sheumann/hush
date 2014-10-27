@@ -5146,7 +5146,7 @@ static NOINLINE const char *expand_one_var(char **to_be_freed_pp, char *arg, cha
 			beg = expand_and_evaluate_arith(exp_word, &errmsg);
 			if (errmsg)
 				goto arith_err;
-			debug_printf_varexp("beg:'%s'=%lld\n", exp_word, (long long)beg);
+			debug_printf_varexp("beg:'%s'=%" PRIdMAX "\n", exp_word, (intmax_t)beg);
 			*p++ = SPECIAL_VAR_SYMBOL;
 			exp_word = p;
 			p = strchr(p, SPECIAL_VAR_SYMBOL);
@@ -5154,7 +5154,7 @@ static NOINLINE const char *expand_one_var(char **to_be_freed_pp, char *arg, cha
 			len = expand_and_evaluate_arith(exp_word, &errmsg);
 			if (errmsg)
 				goto arith_err;
-			debug_printf_varexp("len:'%s'=%lld\n", exp_word, (long long)len);
+			debug_printf_varexp("len:'%s'=%" PRIdMAX "\n", exp_word, (intmax_t)len);
 			if (len >= 0) { /* bash compat: len < 0 is illegal */
 				if (beg < 0) /* bash compat */
 					beg = 0;
@@ -5627,9 +5627,9 @@ static void re_execute_shell(char ***to_free, const char *s,
 		char *g_argv0, char **g_argv,
 		char **builtin_argv)
 {
-# define NOMMU_HACK_FMT ("-$%x:%x:%x:%x:%x:%llx" IF_HUSH_LOOPS(":%x"))
+# define NOMMU_HACK_FMT ("-$%x:%x:%x:%x:%x:%" PRIxMAX IF_HUSH_LOOPS(":%x"))
 	/* delims + 2 * (number of bytes in printed hex numbers) */
-	char param_buf[sizeof(NOMMU_HACK_FMT) + 2 * (sizeof(int)*6 + sizeof(long long)*1)];
+	char param_buf[sizeof(NOMMU_HACK_FMT) + 2 * (sizeof(int)*6 + sizeof(uintmax_t)*1)];
 	char *heredoc_argv[4];
 	struct variable *cur;
 # if ENABLE_HUSH_FUNCTIONS
@@ -5637,7 +5637,7 @@ static void re_execute_shell(char ***to_free, const char *s,
 # endif
 	char **argv, **pp;
 	unsigned cnt;
-	unsigned long long empty_trap_mask;
+	sigmask_t empty_trap_mask;
 
 	if (!g_argv0) { /* heredoc */
 		argv = heredoc_argv;
@@ -5659,7 +5659,7 @@ static void re_execute_shell(char ***to_free, const char *s,
 		int sig;
 		for (sig = 1; sig < NSIG; sig++) {
 			if (G.traps[sig] && !G.traps[sig][0])
-				empty_trap_mask |= 1LL << sig;
+				empty_trap_mask |= ((uintmax_t)1) << sig;
 		}
 	}
 
@@ -7996,7 +7996,7 @@ int hush_main(int argc, char **argv)
 			full_write1_str(optarg);
 			_exit(0);
 		case '$': {
-			unsigned long long empty_trap_mask;
+			sigmask_t empty_trap_mask;
 
 			G.root_pid = bb_strtou(optarg, &optarg, 16);
 			optarg++;
@@ -8014,7 +8014,7 @@ int hush_main(int argc, char **argv)
 				install_special_sighandlers();
 				G.traps = xzalloc(sizeof(G.traps[0]) * NSIG);
 				for (sig = 1; sig < NSIG; sig++) {
-					if (empty_trap_mask & (1LL << sig)) {
+					if (empty_trap_mask & (((uintmax_t)1) << sig)) {
 						G.traps[sig] = xzalloc(1); /* == xstrdup(""); */
 						install_sighandler(sig, SIG_IGN);
 					}
