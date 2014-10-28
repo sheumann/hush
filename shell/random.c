@@ -27,7 +27,6 @@
 # define FAST_FUNC /* nothing */
 # define PUSH_AND_SET_FUNCTION_VISIBILITY_TO_HIDDEN /* nothing */
 # define POP_SAVED_FUNCTION_VISIBILITY /* nothing */
-# define monotonic_us() time(NULL)
 # include "random.h"
 # define RAND_BASH_MASK 0xffffffff /* off */
 #endif
@@ -58,7 +57,7 @@ next_random(random_t *rnd)
 		/* Can use monotonic_ns() for better randomness but for now
 		 * it is not used anywhere else in busybox... so avoid bloat
 		 */
-		INIT_RANDOM_T(rnd, getpid(), monotonic_us());
+		INIT_RANDOM_T(rnd, getpid(), time(NULL));
 	}
 
 	/* LCG: period of 2^32, but quite weak:

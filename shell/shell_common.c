@@ -57,7 +57,7 @@ shell_builtin_read(void FAST_FUNC (*setvar)(const char *name, const char *val),
 )
 {
 	unsigned err;
-	unsigned end_ms; /* -t TIMEOUT */
+	unsigned long end_sec; /* -t TIMEOUT */
 	int fd; /* -u FD */
 	int nchars; /* -n NUM */
 	char **pp;
@@ -87,12 +87,11 @@ shell_builtin_read(void FAST_FUNC (*setvar)(const char *name, const char *val),
 			return "invalid count";
 		/* note: "-n 0": off (bash 3.2 does this too) */
 	}
-	end_ms = 0;
+	end_sec = 0;
 	if (opt_t) {
-		end_ms = bb_strtou(opt_t, NULL, 10);
-		if (errno || end_ms > UINT_MAX / 2048)
+		end_sec = bb_strtoul(opt_t, NULL, 10);
+		if (errno || end_sec > ULONG_MAX / 2048)
 			return "invalid timeout";
-		end_ms *= 1000;
 #if 0 /* even bash has no -t N.NNN support */
 		ts.tv_sec = bb_strtou(opt_t, &p, 10);
 		ts.tv_usec = 0;
@@ -160,21 +159,24 @@ shell_builtin_read(void FAST_FUNC (*setvar)(const char *name, const char *val),
 	retval = (const char *)(uintptr_t)0;
 	startword = 1;
 	backslash = 0;
-	if (end_ms) /* NB: end_ms stays nonzero: */
-		end_ms = ((unsigned)monotonic_ms() + end_ms) | 1;
+	if (end_sec) { /* NB: end_sec stays nonzero: */
+		end_sec = (unsigned long)monotonic_sec() + end_sec;
+		if (end_sec == 0)
+			end_sec = 1;
+	}
 	buffer = NULL;
 	bufpos = 0;
 	do {
 		char c;
 		struct pollfd pfd[1];
-		int timeout;
+		long timeout;
 
 		if ((bufpos & 0xff) == 0)
 			buffer = xrealloc(buffer, bufpos + 0x101);
 
 		timeout = -1;
-		if (end_ms) {
-			timeout = end_ms - (unsigned)monotonic_ms();
+		if (end_sec) {
+			timeout = end_sec - (unsigned long)monotonic_sec();
 			if (timeout <= 0) { /* already late? */
 				retval = (const char *)(uintptr_t)1;
 				goto ret;
@@ -188,7 +190,7 @@ shell_builtin_read(void FAST_FUNC (*setvar)(const char *name, const char *val),
 		errno = 0;
 		pfd[0].fd = fd;
 		pfd[0].events = POLLIN;
-		if (poll(pfd, 1, timeout) != 1) {
+		if (poll(pfd, 1, timeout * 1000) != 1) {
 			/* timed out, or EINTR */
 			err = errno;
 			retval = (const char *)(uintptr_t)1;

@@ -303,10 +303,7 @@ extern int *const bb_errno;
 uint64_t bb_bswap_64(uint64_t x) FAST_FUNC;
 #endif
 
-unsigned long long monotonic_ns(void) FAST_FUNC;
-unsigned long long monotonic_us(void) FAST_FUNC;
-unsigned long long monotonic_ms(void) FAST_FUNC;
-unsigned monotonic_sec(void) FAST_FUNC;
+unsigned long monotonic_sec(void) FAST_FUNC;
 
 extern void chomp(char *s) FAST_FUNC;
 extern void trim(char *s) FAST_FUNC;
@@ -832,18 +829,12 @@ char *itoa(int n) FAST_FUNC;
 /* Returns a pointer past the formatted number, does NOT null-terminate */
 char *utoa_to_buf(unsigned n, char *buf, unsigned buflen) FAST_FUNC;
 char *itoa_to_buf(int n, char *buf, unsigned buflen) FAST_FUNC;
-/* Intelligent formatters of bignums */
-char *smart_ulltoa4(unsigned long long ul, char buf[4], const char *scale) FAST_FUNC;
-char *smart_ulltoa5(unsigned long long ul, char buf[5], const char *scale) FAST_FUNC;
 /* If block_size == 0, display size without fractional part,
  * else display (size * block_size) with one decimal digit.
  * If display_unit == 0, show value no bigger than 1024 with suffix (K,M,G...),
  * else divide by display_unit and do not use suffix. */
 #define HUMAN_READABLE_MAX_WIDTH      7  /* "1024.0G" */
 #define HUMAN_READABLE_MAX_WIDTH_STR "7"
-//TODO: provide pointer to buf (avoid statics)?
-const char *make_human_readable_str(unsigned long long size,
-		unsigned long block_size, unsigned long display_unit) FAST_FUNC;
 /* Put a string of hex bytes ("1b2e66fe"...), return advanced pointer */
 char *bin2hex(char *dst, const char *src, int count) FAST_FUNC;
 /* Reverse */
@@ -1205,10 +1196,6 @@ extern int get_linux_version_code(void) FAST_FUNC;
 
 extern char *query_loop(const char *device) FAST_FUNC;
 extern int del_loop(const char *device) FAST_FUNC;
-/* If *devname is not NULL, use that name, otherwise try to find free one,
- * malloc and return it in *devname.
- * return value: 1: read-only loopdev was setup, 0: rw, < 0: error */
-extern int set_loop(char **devname, const char *file, unsigned long long offset, int ro) FAST_FUNC;
 
 /* Like bb_ask below, but asks on stdin with no timeout.  */
 char *bb_ask_stdin(const char * prompt) FAST_FUNC;

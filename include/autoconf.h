@@ -1,5 +1,5 @@
 /*
- * Automatically generated C config: don't edit
+ * Automatically generated, but now edited manually
  * Busybox version: 1.22.1
  */
 #define AUTOCONF_TIMESTAMP "2014-10-26 09:24:54 CDT"
@@ -280,14 +280,10 @@
 #define ENABLE_FEATURE_SHARED_BUSYBOX 0
 #define IF_FEATURE_SHARED_BUSYBOX(...)
 #define IF_NOT_FEATURE_SHARED_BUSYBOX(...) __VA_ARGS__
-#define CONFIG_LFS 1
-#define ENABLE_LFS 1
-#ifdef MAKE_SUID
-# define IF_LFS(...) __VA_ARGS__ "CONFIG_LFS"
-#else
-# define IF_LFS(...) __VA_ARGS__
-#endif
-#define IF_NOT_LFS(...)
+#undef CONFIG_LFS
+#define ENABLE_LFS 0
+#define IF_LFS(...)
+#define IF_NOT_LFS(...) __VA_ARGS__
 #define CONFIG_CROSS_COMPILER_PREFIX ""
 #define ENABLE_CROSS_COMPILER_PREFIX 1
 #ifdef MAKE_SUID
@@ -900,15 +896,15 @@
 #else
 # define IF_SH_MATH_SUPPORT(...) __VA_ARGS__
 #endif
-#define IF_NOT_SH_MATH_SUPPORT(...)
-#define CONFIG_SH_MATH_SUPPORT_64 1
-#define ENABLE_SH_MATH_SUPPORT_64 1
+#define IF_NOT_SH_MATH_SUPPORT(...) 
+#undef CONFIG_SH_MATH_SUPPORT_64 
+#define ENABLE_SH_MATH_SUPPORT_64 0
 #ifdef MAKE_SUID
-# define IF_SH_MATH_SUPPORT_64(...) __VA_ARGS__ "CONFIG_SH_MATH_SUPPORT_64"
+# define IF_SH_MATH_SUPPORT_64(...)
 #else
-# define IF_SH_MATH_SUPPORT_64(...) __VA_ARGS__
+# define IF_SH_MATH_SUPPORT_64(...)
 #endif
-#define IF_NOT_SH_MATH_SUPPORT_64(...)
+#define IF_NOT_SH_MATH_SUPPORT_64(...) __VA_ARGS__
 #define CONFIG_FEATURE_SH_EXTRA_QUIET 1
 #define ENABLE_FEATURE_SH_EXTRA_QUIET 1
 #ifdef MAKE_SUID
