@@ -340,19 +340,19 @@
 
 /* If you comment out one of these below, it will be #defined later
  * to perform debug printfs to stderr: */
-#define debug_printf(...)        do {} while (0)
+#define debug_printf(x)        do {} while (0)
 /* Finer-grained debug switches */
-#define debug_printf_parse(...)  do {} while (0)
+#define debug_printf_parse(x)  do {} while (0)
 #define debug_print_tree(a, b)   do {} while (0)
-#define debug_printf_exec(...)   do {} while (0)
-#define debug_printf_env(...)    do {} while (0)
-#define debug_printf_jobs(...)   do {} while (0)
-#define debug_printf_expand(...) do {} while (0)
-#define debug_printf_varexp(...) do {} while (0)
-#define debug_printf_glob(...)   do {} while (0)
-#define debug_printf_list(...)   do {} while (0)
-#define debug_printf_subst(...)  do {} while (0)
-#define debug_printf_clean(...)  do {} while (0)
+#define debug_printf_exec(x)   do {} while (0)
+#define debug_printf_env(x)    do {} while (0)
+#define debug_printf_jobs(x)   do {} while (0)
+#define debug_printf_expand(x) do {} while (0)
+#define debug_printf_varexp(x) do {} while (0)
+#define debug_printf_glob(x)   do {} while (0)
+#define debug_printf_list(x)   do {} while (0)
+#define debug_printf_subst(x)  do {} while (0)
+#define debug_printf_clean(x)  do {} while (0)
 
 #define ERR_PTR ((void*)(long)1)
 
@@ -982,57 +982,74 @@ static const struct built_in_command bltins2[] = {
 # define debug_leave() ((void)0)
 #endif
 
+#if !defined(debug_printf) || !defined(debug_printf_parse) || \
+	!defined(debug_printf_exec) || !defined(debug_printf_env) || \
+	!defined(debug_printf_jobs) || !defined(debug_printf_expand) || \
+	!defined(debug_printf_varexp) || !defined(debug_printf_glob) || \
+	!defined(debug_printf_list) || !defined(debug_printf_subst) || \
+	!defined(debug_printf_clean)
+static void real_debug_printf(const char *fmt, ...) {
+	va_list p;
+
+	va_start(p, fmt);
+	indent();
+	vfprintf(stderr, fmt, p);
+	va_end(p);
+}
+#endif
+
+// Note that x in the below macros must be passed a parenthesized argument list
 #ifndef debug_printf
-# define debug_printf(...) (indent(), fdprintf(2, __VA_ARGS__))
+# define debug_printf(x) real_debug_printf x
 #endif
 
 #ifndef debug_printf_parse
-# define debug_printf_parse(...) (indent(), fdprintf(2, __VA_ARGS__))
+# define debug_printf_parse(x) real_debug_printf x
 #endif
 
 #ifndef debug_printf_exec
-#define debug_printf_exec(...) (indent(), fdprintf(2, __VA_ARGS__))
+#define debug_printf_exec(x) real_debug_printf x
 #endif
 
 #ifndef debug_printf_env
-# define debug_printf_env(...) (indent(), fdprintf(2, __VA_ARGS__))
+# define debug_printf_env(x) real_debug_printf x
 #endif
 
 #ifndef debug_printf_jobs
-# define debug_printf_jobs(...) (indent(), fdprintf(2, __VA_ARGS__))
+# define debug_printf_jobs(x) real_debug_printf x
 # define DEBUG_JOBS 1
 #else
 # define DEBUG_JOBS 0
 #endif
 
 #ifndef debug_printf_expand
-# define debug_printf_expand(...) (indent(), fdprintf(2, __VA_ARGS__))
+# define debug_printf_expand(x) real_debug_printf x
 # define DEBUG_EXPAND 1
 #else
 # define DEBUG_EXPAND 0
 #endif
 
 #ifndef debug_printf_varexp
-# define debug_printf_varexp(...) (indent(), fdprintf(2, __VA_ARGS__))
+# define debug_printf_varexp(x) real_debug_printf x
 #endif
 
 #ifndef debug_printf_glob
-# define debug_printf_glob(...) (indent(), fdprintf(2, __VA_ARGS__))
+# define debug_printf_glob(x) real_debug_printf x
 # define DEBUG_GLOB 1
 #else
 # define DEBUG_GLOB 0
 #endif
 
 #ifndef debug_printf_list
-# define debug_printf_list(...) (indent(), fdprintf(2, __VA_ARGS__))
+# define debug_printf_list(x) real_debug_printf x
 #endif
 
 #ifndef debug_printf_subst
-# define debug_printf_subst(...) (indent(), fdprintf(2, __VA_ARGS__))
+# define debug_printf_subst(x) real_debug_printf x
 #endif
 
 #ifndef debug_printf_clean
-# define debug_printf_clean(...) (indent(), fdprintf(2, __VA_ARGS__))
+# define debug_printf_clean(x) real_debug_printf x
 # define DEBUG_CLEAN 1
 #else
 # define DEBUG_CLEAN 0
@@ -1090,7 +1107,6 @@ static void xxfree(void *ptr)
  * HUSH_DEBUG >= 2 prints line number in this file where it was detected.
  */
 #if HUSH_DEBUG < 2
-# define die_if_script(lineno, ...)             die_if_script(__VA_ARGS__)
 # define syntax_error(lineno, msg)              syntax_error(msg)
 # define syntax_error_at(lineno, msg)           syntax_error_at(msg)
 # define syntax_error_unterm_ch(lineno, ch)     syntax_error_unterm_ch(ch)
@@ -1098,11 +1114,11 @@ static void xxfree(void *ptr)
 # define syntax_error_unexpected_ch(lineno, ch) syntax_error_unexpected_ch(ch)
 #endif
 
-static void die_if_script(unsigned lineno, const char *fmt, ...)
+static void die_if_script(const char *fmt, ...)
 {
 	va_list p;
 
-#if HUSH_DEBUG >= 2
+#if 0 && HUSH_DEBUG >= 2
 	bb_error_msg("hush.c:%u", lineno);
 #endif
 	va_start(p, fmt);
@@ -1145,14 +1161,12 @@ static void syntax_error_unexpected_ch(unsigned lineno UNUSED_PARAM, int ch)
 }
 
 #if HUSH_DEBUG < 2
-# undef die_if_script
 # undef syntax_error
 # undef syntax_error_at
 # undef syntax_error_unterm_ch
 # undef syntax_error_unterm_str
 # undef syntax_error_unexpected_ch
 #else
-# define die_if_script(...)             die_if_script(__LINE__, __VA_ARGS__)
 # define syntax_error(msg)              syntax_error(__LINE__, msg)
 # define syntax_error_at(msg)           syntax_error_at(__LINE__, msg)
 # define syntax_error_unterm_ch(ch)     syntax_error_unterm_ch(__LINE__, ch)
@@ -1645,7 +1659,7 @@ static int check_and_run_traps(void)
 			for (job = G.job_list; job; job = job->next) {
 				if (job->pgrp <= 0)
 					continue;
-				debug_printf_exec("HUPing pgrp %d\n", job->pgrp);
+				debug_printf_exec(("HUPing pgrp %d\n", job->pgrp));
 				if (kill(- job->pgrp, SIGHUP) == 0)
 					kill(- job->pgrp, SIGCONT);
 			}
@@ -1788,7 +1802,7 @@ static int set_local_var(char *str, int flg_export, int local_lvl, int flg_read_
 			return -1;
 		}
 		if (flg_export == -1) { // "&& cur->flg_export" ?
-			debug_printf_env("%s: unsetenv '%s'\n", __func__, str);
+			debug_printf_env(("%s: unsetenv '%s'\n", __func__, str));
 			*eq_sign = '\0';
 			unsetenv(str);
 			*eq_sign = '=';
@@ -1858,7 +1872,7 @@ static int set_local_var(char *str, int flg_export, int local_lvl, int flg_read_
 			cur->flg_export = 0;
 			/* unsetenv was already done */
 		} else {
-			debug_printf_env("%s: putenv '%s'\n", __func__, cur->varstr);
+			debug_printf_env(("%s: putenv '%s'\n", __func__, cur->varstr));
 			return putenv(cur->varstr);
 		}
 	}
@@ -1887,7 +1901,7 @@ static int unset_local_var_len(const char *name, int name_len)
 				return EXIT_FAILURE;
 			}
 			*var_pp = cur->next;
-			debug_printf_env("%s: unsetenv '%s'\n", __func__, cur->varstr);
+			debug_printf_env(("%s: unsetenv '%s'\n", __func__, cur->varstr));
 			bb_unsetenv(cur->varstr);
 			if (name_len == 3 && cur->varstr[0] == 'P' && cur->varstr[1] == 'S')
 				cmdedit_update_prompt();
@@ -1940,10 +1954,10 @@ static void add_vars(struct variable *var)
 		var->next = G.top_var;
 		G.top_var = var;
 		if (var->flg_export) {
-			debug_printf_env("%s: restoring exported '%s'\n", __func__, var->varstr);
+			debug_printf_env(("%s: restoring exported '%s'\n", __func__, var->varstr));
 			putenv(var->varstr);
 		} else {
-			debug_printf_env("%s: restoring variable '%s'\n", __func__, var->varstr);
+			debug_printf_env(("%s: restoring variable '%s'\n", __func__, var->varstr));
 		}
 		var = next;
 	}
@@ -1968,7 +1982,7 @@ static struct variable *set_vars_and_save_old(char **strings)
 			if (var_pp) {
 				/* Remove variable from global linked list */
 				var_p = *var_pp;
-				debug_printf_env("%s: removing '%s'\n", __func__, var_p->varstr);
+				debug_printf_env(("%s: removing '%s'\n", __func__, var_p->varstr));
 				*var_pp = var_p->next;
 				/* Add it to returned list */
 				var_p->next = old;
@@ -2040,7 +2054,7 @@ static void cmdedit_update_prompt(void)
 static const char *setup_prompt_string(int promptmode)
 {
 	const char *prompt_str;
-	debug_printf("setup_prompt_string %d ", promptmode);
+	debug_printf(("setup_prompt_string %d ", promptmode));
 	if (!ENABLE_FEATURE_EDITING_FANCY_PROMPT) {
 		/* Set up the prompt */
 		if (promptmode == 0) { /* PS1 */
@@ -2054,7 +2068,7 @@ static const char *setup_prompt_string(int promptmode)
 			prompt_str = G.PS2;
 	} else
 		prompt_str = (promptmode == 0) ? G.PS1 : G.PS2;
-	debug_printf("result '%s'\n", prompt_str);
+	debug_printf(("result '%s'\n", prompt_str));
 	return prompt_str;
 }
 
@@ -2133,7 +2147,7 @@ static int FAST_FUNC file_get(struct in_str *i)
 #endif
 		do ch = fgetc(i->file); while (ch == '\0');
 	}
-	debug_printf("file_get: got '%c' %d\n", ch, ch);
+	debug_printf(("file_get: got '%c' %d\n", ch, ch));
 	i->last_char = ch;
 	return ch;
 }
@@ -2155,7 +2169,7 @@ static int FAST_FUNC file_peek(struct in_str *i)
 	i->peek_buf[0] = ch;
 	i->peek_buf[1] = '\0';
 	i->p = i->peek_buf;
-	debug_printf("file_peek: got '%c' %d\n", ch, ch);
+	debug_printf(("file_peek: got '%c' %d\n", ch, ch));
 	return ch;
 }
 
@@ -2214,7 +2228,7 @@ static void o_grow_by(o_string *o, int len)
 
 static void o_addchr(o_string *o, int ch)
 {
-	debug_printf("o_addchr: '%c' o->length=%d o=%p\n", ch, o->length, o);
+	debug_printf(("o_addchr: '%c' o->length=%d o=%p\n", ch, o->length, o));
 	o_grow_by(o, 1);
 	o->data[o->length] = ch;
 	o->length++;
@@ -2396,7 +2410,7 @@ static int o_save_ptr_helper(o_string *o, int n)
 		string_start = ((n + 0xf) & ~0xf) * sizeof(list[0]);
 		string_len = o->length - string_start;
 		if (!(n & 0xf)) { /* 0, 0x10, 0x20...? */
-			debug_printf_list("list[%d]=%d string_start=%d (growing)\n", n, string_len, string_start);
+			debug_printf_list(("list[%d]=%d string_start=%d (growing)\n", n, string_len, string_start));
 			/* list[n] points to string_start, make space for 16 more pointers */
 			o->maxlen += 0x10 * sizeof(list[0]);
 			o->data = xrealloc(o->data, o->maxlen + 1);
@@ -2404,15 +2418,15 @@ static int o_save_ptr_helper(o_string *o, int n)
 			memmove(list + n + 0x10, list + n, string_len);
 			o->length += 0x10 * sizeof(list[0]);
 		} else {
-			debug_printf_list("list[%d]=%d string_start=%d\n",
-					n, string_len, string_start);
+			debug_printf_list(("list[%d]=%d string_start=%d\n",
+					n, string_len, string_start));
 		}
 	} else {
 		/* We have empty slot at list[n], reuse without growth */
 		string_start = ((n+1 + 0xf) & ~0xf) * sizeof(list[0]); /* NB: n+1! */
 		string_len = o->length - string_start;
-		debug_printf_list("list[%d]=%d string_start=%d (empty slot)\n",
-				n, string_len, string_start);
+		debug_printf_list(("list[%d]=%d string_start=%d (empty slot)\n",
+				n, string_len, string_start));
 		o->has_empty_slot = 0;
 	}
 	o->has_quoted_part = 0;
@@ -2482,7 +2496,7 @@ static int glob_brace(char *pattern, o_string *o, int n)
 	const char *p;
 	size_t rest_len;
 
-	debug_printf_glob("glob_brace('%s')\n", pattern);
+	debug_printf_glob(("glob_brace('%s')\n", pattern));
 
 	begin = pattern;
 	while (1) {
@@ -2508,8 +2522,8 @@ static int glob_brace(char *pattern, o_string *o, int n)
 			begin++;
 		begin++;
 	}
-	debug_printf_glob("begin:%s\n", begin);
-	debug_printf_glob("next:%s\n", next);
+	debug_printf_glob(("begin:%s\n", begin));
+	debug_printf_glob(("next:%s\n", next));
 
 	/* Now find the end of the whole brace expression */
 	rest = next;
@@ -2519,7 +2533,7 @@ static int glob_brace(char *pattern, o_string *o, int n)
 			/* An illegal expression */
 			goto simple_glob;
 		}
-		debug_printf_glob("rest:%s\n", rest);
+		debug_printf_glob(("rest:%s\n", rest));
 	}
 	rest_len = strlen(++rest) + 1;
 
@@ -2566,14 +2580,14 @@ static int glob_brace(char *pattern, o_string *o, int n)
 
 		memset(&globdata, 0, sizeof(globdata));
 		gr = glob(pattern, 0, NULL, &globdata);
-		debug_printf_glob("glob('%s'):%d\n", pattern, gr);
+		debug_printf_glob(("glob('%s'):%d\n", pattern, gr));
 		if (gr != 0) {
 			if (gr == GLOB_NOMATCH) {
 				globfree(&globdata);
 				/* NB: garbles parameter */
 				unbackslash(pattern);
 				o_addstr_with_NUL(o, pattern);
-				debug_printf_glob("glob pattern '%s' is literal\n", pattern);
+				debug_printf_glob(("glob pattern '%s' is literal\n", pattern));
 				return o_save_ptr_helper(o, n);
 			}
 			if (gr == GLOB_NOSPACE)
@@ -2603,15 +2617,15 @@ static int perform_glob(o_string *o, int n)
 {
 	char *pattern, *copy;
 
-	debug_printf_glob("start perform_glob: n:%d o->data:%p\n", n, o->data);
+	debug_printf_glob(("start perform_glob: n:%d o->data:%p\n", n, o->data));
 	if (!o->data)
 		return o_save_ptr_helper(o, n);
 	pattern = o->data + o_get_last_ptr(o, n);
-	debug_printf_glob("glob pattern '%s'\n", pattern);
+	debug_printf_glob(("glob pattern '%s'\n", pattern));
 	if (!glob_needed(pattern)) {
 		/* unbackslash last string in o in place, fix length */
 		o->length = unbackslash(pattern) - o->data;
-		debug_printf_glob("glob pattern '%s' is literal\n", pattern);
+		debug_printf_glob(("glob pattern '%s' is literal\n", pattern));
 		return o_save_ptr_helper(o, n);
 	}
 
@@ -2652,16 +2666,16 @@ static int perform_glob(o_string *o, int n)
 	int gr;
 	char *pattern;
 
-	debug_printf_glob("start perform_glob: n:%d o->data:%p\n", n, o->data);
+	debug_printf_glob(("start perform_glob: n:%d o->data:%p\n", n, o->data));
 	if (!o->data)
 		return o_save_ptr_helper(o, n);
 	pattern = o->data + o_get_last_ptr(o, n);
-	debug_printf_glob("glob pattern '%s'\n", pattern);
+	debug_printf_glob(("glob pattern '%s'\n", pattern));
 	if (!glob_needed(pattern)) {
  literal:
 		/* unbackslash last string in o in place, fix length */
 		o->length = unbackslash(pattern) - o->data;
-		debug_printf_glob("glob pattern '%s' is literal\n", pattern);
+		debug_printf_glob(("glob pattern '%s' is literal\n", pattern));
 		return o_save_ptr_helper(o, n);
 	}
 
@@ -2672,7 +2686,7 @@ static int perform_glob(o_string *o, int n)
 	 * will return "*.\*"!
 	 */
 	gr = glob(pattern, 0, NULL, &globdata);
-	debug_printf_glob("glob('%s'):%d\n", pattern, gr);
+	debug_printf_glob(("glob('%s'):%d\n", pattern, gr));
 	if (gr != 0) {
 		if (gr == GLOB_NOMATCH) {
 			globfree(&globdata);
@@ -2727,7 +2741,7 @@ static char **o_finalize_list(o_string *o, int n)
 	n = o_save_ptr(o, n); /* force growth for list[n] if necessary */
 	if (DEBUG_EXPAND)
 		debug_print_list("finalized", o, n);
-	debug_printf_expand("finalized n:%d\n", n);
+	debug_printf_expand(("finalized n:%d\n", n));
 	list = (char**)o->data;
 	string_start = ((n + 0xf) & ~0xf) * sizeof(list[0]);
 	list[--n] = NULL;
@@ -2746,19 +2760,19 @@ static struct pipe *free_pipe(struct pipe *pi)
 	struct pipe *next;
 	int i;
 
-	debug_printf_clean("free_pipe (pid %d)\n", getpid());
+	debug_printf_clean(("free_pipe (pid %d)\n", getpid()));
 	for (i = 0; i < pi->num_cmds; i++) {
 		struct command *command;
 		struct redir_struct *r, *rnext;
 
 		command = &pi->cmds[i];
-		debug_printf_clean("  command %d:\n", i);
+		debug_printf_clean(("  command %d:\n", i));
 		if (command->argv) {
 			if (DEBUG_CLEAN) {
 				int a;
 				char **p;
 				for (a = 0, p = command->argv; *p; a++, p++) {
-					debug_printf_clean("   argv[%d] = %s\n", a, *p);
+					debug_printf_clean(("   argv[%d] = %s\n", a, *p));
 				}
 			}
 			free_strings(command->argv);
@@ -2766,17 +2780,17 @@ static struct pipe *free_pipe(struct pipe *pi)
 		}
 		/* not "else if": on syntax error, we may have both! */
 		if (command->group) {
-			debug_printf_clean("   begin group (cmd_type:%d)\n",
-					command->cmd_type);
+			debug_printf_clean(("   begin group (cmd_type:%d)\n",
+					command->cmd_type));
 			free_pipe_list(command->group);
-			debug_printf_clean("   end group\n");
+			debug_printf_clean(("   end group\n"));
 			//command->group = NULL;
 		}
 		/* else is crucial here.
 		 * If group != NULL, child_func is meaningless */
 #if ENABLE_HUSH_FUNCTIONS
 		else if (command->child_func) {
-			debug_printf_exec("cmd %p releases child func at %p\n", command, command->child_func);
+			debug_printf_exec(("cmd %p releases child func at %p\n", command, command->child_func));
 			command->child_func->parent_cmd = NULL;
 		}
 #endif
@@ -2785,15 +2799,15 @@ static struct pipe *free_pipe(struct pipe *pi)
 		//command->group_as_string = NULL;
 #endif
 		for (r = command->redirects; r; r = rnext) {
-			debug_printf_clean("   redirect %d%s",
-					r->rd_fd, redir_table[r->rd_type].descrip);
+			debug_printf_clean(("   redirect %d%s",
+					r->rd_fd, redir_table[r->rd_type].descrip));
 			/* guard against the case >$FOO, where foo is unset or blank */
 			if (r->rd_filename) {
-				debug_printf_clean(" fname:'%s'\n", r->rd_filename);
+				debug_printf_clean((" fname:'%s'\n", r->rd_filename));
 				free(r->rd_filename);
 				//r->rd_filename = NULL;
 			}
-			debug_printf_clean(" rd_dup:%d\n", r->rd_dup);
+			debug_printf_clean((" rd_dup:%d\n", r->rd_dup));
 			rnext = r->next;
 			free(r);
 		}
@@ -2815,9 +2829,9 @@ static void free_pipe_list(struct pipe *pi)
 {
 	while (pi) {
 #if HAS_KEYWORDS
-		debug_printf_clean("pipe reserved word %d\n", pi->res_word);
+		debug_printf_clean(("pipe reserved word %d\n", pi->res_word));
 #endif
-		debug_printf_clean("pipe followup code %d\n", pi->followup);
+		debug_printf_clean(("pipe followup code %d\n", pi->followup));
 		pi = free_pipe(pi);
 	}
 }
@@ -2935,14 +2949,14 @@ static int done_command(struct parse_context *ctx)
 
 	if (command) {
 		if (IS_NULL_CMD(command)) {
-			debug_printf_parse("done_command: skipping null cmd, num_cmds=%d\n", pi->num_cmds);
+			debug_printf_parse(("done_command: skipping null cmd, num_cmds=%d\n", pi->num_cmds));
 			goto clear_and_ret;
 		}
 		pi->num_cmds++;
-		debug_printf_parse("done_command: ++num_cmds=%d\n", pi->num_cmds);
+		debug_printf_parse(("done_command: ++num_cmds=%d\n", pi->num_cmds));
 		//debug_print_tree(ctx->list_head, 20);
 	} else {
-		debug_printf_parse("done_command: initializing, num_cmds=%d\n", pi->num_cmds);
+		debug_printf_parse(("done_command: initializing, num_cmds=%d\n", pi->num_cmds));
 	}
 
 	/* Only real trickiness here is that the uncommitted
@@ -2958,7 +2972,7 @@ static void done_pipe(struct parse_context *ctx, pipe_style type)
 {
 	int not_null;
 
-	debug_printf_parse("done_pipe entered, followup %d\n", type);
+	debug_printf_parse(("done_pipe entered, followup %d\n", type));
 	/* Close previous command */
 	not_null = done_command(ctx);
 	ctx->pipe->followup = type;
@@ -2985,9 +2999,9 @@ static void done_pipe(struct parse_context *ctx, pipe_style type)
 #endif
 	) {
 		struct pipe *new_p;
-		debug_printf_parse("done_pipe: adding new pipe: "
+		debug_printf_parse(("done_pipe: adding new pipe: "
 				"not_null:%d ctx->ctx_res_w:%d\n",
-				not_null, ctx->ctx_res_w);
+				not_null, ctx->ctx_res_w));
 		new_p = new_pipe();
 		ctx->pipe->next = new_p;
 		ctx->pipe = new_p;
@@ -3016,7 +3030,7 @@ static void done_pipe(struct parse_context *ctx, pipe_style type)
 		done_command(ctx);
 		//debug_print_tree(ctx->list_head, 10);
 	}
-	debug_printf_parse("done_pipe return\n");
+	debug_printf_parse(("done_pipe return\n"));
 }
 
 static void initialize_context(struct parse_context *ctx)
@@ -3118,7 +3132,7 @@ static int reserved_word(o_string *word, struct parse_context *ctx)
 	if (!r)
 		return 0;
 
-	debug_printf("found reserved word %s, res %d\n", r->literal, r->res);
+	debug_printf(("found reserved word %s, res %d\n", r->literal, r->res));
 # if ENABLE_HUSH_CASE
 	if (r->res == RES_IN && ctx->ctx_res_w == RES_CASE_IN) {
 		/* "case word IN ..." - IN part starts first MATCH part */
@@ -3137,7 +3151,7 @@ static int reserved_word(o_string *word, struct parse_context *ctx)
 		struct parse_context *old;
 
 		old = xmalloc(sizeof(*old));
-		debug_printf_parse("push stack %p\n", old);
+		debug_printf_parse(("push stack %p\n", old));
 		*old = *ctx;   /* physical copy */
 		initialize_context(ctx);
 		ctx->stack = old;
@@ -3156,13 +3170,13 @@ static int reserved_word(o_string *word, struct parse_context *ctx)
 	ctx->ctx_res_w = r->res;
 	ctx->old_flag = r->flag;
 	word->o_assignment = r->assignment_flag;
-	debug_printf_parse("word->o_assignment='%s'\n", assignment_flag[word->o_assignment]);
+	debug_printf_parse(("word->o_assignment='%s'\n", assignment_flag[word->o_assignment]));
 
 	if (ctx->old_flag & FLAG_END) {
 		struct parse_context *old;
 
 		done_pipe(ctx, PIPE_SEQ);
-		debug_printf_parse("pop stack %p\n", ctx->stack);
+		debug_printf_parse(("pop stack %p\n", ctx->stack));
 		old = ctx->stack;
 		old->command->group = ctx->list_head;
 		old->command->cmd_type = CMD_NORMAL;
@@ -3170,8 +3184,8 @@ static int reserved_word(o_string *word, struct parse_context *ctx)
 		o_addstr(&old->as_string, ctx->as_string.data);
 		o_free_unsafe(&ctx->as_string);
 		old->command->group_as_string = xstrdup(old->as_string.data);
-		debug_printf_parse("pop, remembering as:'%s'\n",
-				old->command->group_as_string);
+		debug_printf_parse(("pop, remembering as:'%s'\n",
+				old->command->group_as_string));
 # endif
 		*ctx = *old;   /* physical copy */
 		free(old);
@@ -3188,9 +3202,9 @@ static int done_word(o_string *word, struct parse_context *ctx)
 {
 	struct command *command = ctx->command;
 
-	debug_printf_parse("done_word entered: '%s' %p\n", word->data, command);
+	debug_printf_parse(("done_word entered: '%s' %p\n", word->data, command));
 	if (word->length == 0 && !word->has_quoted_part) {
-		debug_printf_parse("done_word return 0: true null, ignored\n");
+		debug_printf_parse(("done_word return 0: true null, ignored\n"));
 		return 0;
 	}
 
@@ -3220,7 +3234,7 @@ static int done_word(o_string *word, struct parse_context *ctx)
 				ctx->pending_redirect->rd_dup |= HEREDOC_QUOTED;
 			}
 		}
-		debug_printf_parse("word stored in rd_filename: '%s'\n", word->data);
+		debug_printf_parse(("word stored in rd_filename: '%s'\n", word->data));
 		ctx->pending_redirect = NULL;
 	} else {
 #if HAS_KEYWORDS
@@ -3243,11 +3257,11 @@ static int done_word(o_string *word, struct parse_context *ctx)
 # endif
 		) {
 			int reserved = reserved_word(word, ctx);
-			debug_printf_parse("checking for reserved-ness: %d\n", reserved);
+			debug_printf_parse(("checking for reserved-ness: %d\n", reserved));
 			if (reserved) {
 				o_reset_to_empty_unquoted(word);
-				debug_printf_parse("done_word return %d\n",
-						(ctx->ctx_res_w == RES_SNTX));
+				debug_printf_parse(("done_word return %d\n",
+						(ctx->ctx_res_w == RES_SNTX)));
 				return (ctx->ctx_res_w == RES_SNTX);
 			}
 # if ENABLE_HUSH_BASH_COMPAT
@@ -3261,8 +3275,8 @@ static int done_word(o_string *word, struct parse_context *ctx)
 		if (command->group) {
 			/* "{ echo foo; } echo bar" - bad */
 			syntax_error_at(word->data);
-			debug_printf_parse("done_word return 1: syntax error, "
-					"groups and arglists don't mix\n");
+			debug_printf_parse(("done_word return 1: syntax error, "
+					"groups and arglists don't mix\n"));
 			return 1;
 		}
 
@@ -3275,12 +3289,12 @@ static int done_word(o_string *word, struct parse_context *ctx)
 		} else {
 			if (word->o_assignment == DEFINITELY_ASSIGNMENT) {
 				command->assignment_cnt++;
-				debug_printf_parse("++assignment_cnt=%d\n", command->assignment_cnt);
+				debug_printf_parse(("++assignment_cnt=%d\n", command->assignment_cnt));
 			}
-			debug_printf_parse("word->o_assignment was:'%s'\n", assignment_flag[word->o_assignment]);
+			debug_printf_parse(("word->o_assignment was:'%s'\n", assignment_flag[word->o_assignment]));
 			word->o_assignment = MAYBE_ASSIGNMENT;
 		}
-		debug_printf_parse("word->o_assignment='%s'\n", assignment_flag[word->o_assignment]);
+		debug_printf_parse(("word->o_assignment='%s'\n", assignment_flag[word->o_assignment]));
 
 		if (word->has_quoted_part
 		 /* optimization: and if it's ("" or '') or ($v... or `cmd`...): */
@@ -3325,7 +3339,7 @@ static int done_word(o_string *word, struct parse_context *ctx)
 
 	o_reset_to_empty_unquoted(word);
 
-	debug_printf_parse("done_word return 0\n");
+	debug_printf_parse(("done_word return 0\n"));
 	return 0;
 }
 
@@ -3426,16 +3440,16 @@ static int parse_redirect(struct parse_context *ctx,
 	redir->rd_type = style;
 	redir->rd_fd = (fd == -1) ? redir_table[style].default_fd : fd;
 
-	debug_printf_parse("redirect type %d %s\n", redir->rd_fd,
-				redir_table[style].descrip);
+	debug_printf_parse(("redirect type %d %s\n", redir->rd_fd,
+				redir_table[style].descrip));
 
 	redir->rd_dup = dup_num;
 	if (style != REDIRECT_HEREDOC && dup_num != REDIRFD_TO_FILE) {
 		/* Erik had a check here that the file descriptor in question
 		 * is legit; I postpone that to "run time"
 		 * A "-" representation of "close me" shows up as a -3 here */
-		debug_printf_parse("duplicating redirect '%d>&%d'\n",
-				redir->rd_fd, redir->rd_dup);
+		debug_printf_parse(("duplicating redirect '%d>&%d'\n",
+				redir->rd_fd, redir->rd_dup));
 	} else {
 		/* Set ctx->pending_redirect, so we know what to do at the
 		 * end of the next parsed word. */
@@ -3502,7 +3516,7 @@ static char *fetch_till_str(o_string *as_string,
 		) {
 			if (strcmp(heredoc.data + past_EOL, word) == 0) {
 				heredoc.data[past_EOL] = '\0';
-				debug_printf_parse("parsed heredoc '%s'\n", heredoc.data);
+				debug_printf_parse(("parsed heredoc '%s'\n", heredoc.data));
 				return heredoc.data;
 			}
 			while (ch == '\n') {
@@ -3542,14 +3556,14 @@ static int fetch_heredocs(int heredoc_cnt, struct parse_context *ctx, struct in_
 		int i;
 		struct command *cmd = pi->cmds;
 
-		debug_printf_parse("fetch_heredocs: num_cmds:%d cmd argv0:'%s'\n",
+		debug_printf_parse(("fetch_heredocs: num_cmds:%d cmd argv0:'%s'\n",
 				pi->num_cmds,
-				cmd->argv ? cmd->argv[0] : "NONE");
+				cmd->argv ? cmd->argv[0] : "NONE"));
 		for (i = 0; i < pi->num_cmds; i++) {
 			struct redir_struct *redir = cmd->redirects;
 
-			debug_printf_parse("fetch_heredocs: %d cmd argv0:'%s'\n",
-					i, cmd->argv ? cmd->argv[0] : "NONE");
+			debug_printf_parse(("fetch_heredocs: %d cmd argv0:'%s'\n",
+					i, cmd->argv ? cmd->argv[0] : "NONE"));
 			while (redir) {
 				if (redir->rd_type == REDIRECT_HEREDOC) {
 					char *p;
@@ -3605,7 +3619,7 @@ static int parse_group(o_string *dest, struct parse_context *ctx,
 	int endch;
 	struct command *command = ctx->command;
 
-	debug_printf_parse("parse_group entered\n");
+	debug_printf_parse(("parse_group entered\n"));
 #if ENABLE_HUSH_FUNCTIONS
 	if (ch == '(' && !dest->has_quoted_part) {
 		if (dest->length)
@@ -3645,8 +3659,8 @@ static int parse_group(o_string *dest, struct parse_context *ctx,
 	 || dest->has_quoted_part /* ""{... */
 	) {
 		syntax_error(NULL);
-		debug_printf_parse("parse_group return 1: "
-			"syntax error, groups and arglists don't mix\n");
+		debug_printf_parse(("parse_group return 1: "
+			"syntax error, groups and arglists don't mix\n"));
 		return 1;
 	}
 #endif
@@ -3684,20 +3698,20 @@ static int parse_group(o_string *dest, struct parse_context *ctx,
 			/* parse_stream already emitted error msg */
 			if (!BB_MMU)
 				free(as_string);
-			debug_printf_parse("parse_group return 1: "
-				"parse_stream returned %p\n", pipe_list);
+			debug_printf_parse(("parse_group return 1: "
+				"parse_stream returned %p\n", pipe_list));
 			return 1;
 		}
 		command->group = pipe_list;
 #if !BB_MMU
 		as_string[strlen(as_string) - 1] = '\0'; /* plink ')' or '}' */
 		command->group_as_string = as_string;
-		debug_printf_parse("end of group, remembering as:'%s'\n",
-				command->group_as_string);
+		debug_printf_parse(("end of group, remembering as:'%s'\n",
+				command->group_as_string));
 #endif
 #undef as_string
 	}
-	debug_printf_parse("parse_group return 0\n");
+	debug_printf_parse(("parse_group return 0\n"));
 	return 0;
 	/* command remains "open", available for possible redirects */
 }
@@ -3877,14 +3891,14 @@ static int parse_dollar(o_string *as_string,
 {
 	int ch = i_peek(input);  /* first character after the $ */
 
-	debug_printf_parse("parse_dollar entered: ch='%c'\n", ch);
+	debug_printf_parse(("parse_dollar entered: ch='%c'\n", ch));
 	if (isalpha(ch)) {
 		ch = i_getch(input);
 		nommu_addchr(as_string, ch);
  make_var:
 		o_addchr(dest, SPECIAL_VAR_SYMBOL);
 		while (1) {
-			debug_printf_parse(": '%c'\n", ch);
+			debug_printf_parse((": '%c'\n", ch));
 			o_addchr(dest, ch | quote_mask);
 			quote_mask = 0;
 			ch = i_peek(input);
@@ -3899,7 +3913,7 @@ static int parse_dollar(o_string *as_string,
 		ch = i_getch(input);
 		nommu_addchr(as_string, ch);
 		o_addchr(dest, SPECIAL_VAR_SYMBOL);
-		debug_printf_parse(": '%c'\n", ch);
+		debug_printf_parse((": '%c'\n", ch));
 		o_addchr(dest, ch | quote_mask);
 		o_addchr(dest, SPECIAL_VAR_SYMBOL);
 	} else switch (ch) {
@@ -3926,7 +3940,7 @@ static int parse_dollar(o_string *as_string,
 		) {
  bad_dollar_syntax:
 			syntax_error_unterm_str("${name}");
-			debug_printf_parse("parse_dollar return 0: unterminated ${name}\n");
+			debug_printf_parse(("parse_dollar return 0: unterminated ${name}\n"));
 			return 0;
 		}
 		nommu_addchr(as_string, ch);
@@ -3941,7 +3955,7 @@ static int parse_dollar(o_string *as_string,
 			unsigned pos;
 
 			o_addchr(dest, ch);
-			debug_printf_parse(": '%c'\n", ch);
+			debug_printf_parse((": '%c'\n", ch));
 
 			ch = i_getch(input);
 			nommu_addchr(as_string, ch);
@@ -4073,7 +4087,7 @@ static int parse_dollar(o_string *as_string,
 	default:
 		o_addQchr(dest, '$');
 	}
-	debug_printf_parse("parse_dollar return 1 (ok)\n");
+	debug_printf_parse(("parse_dollar return 1 (ok)\n"));
 	return 1;
 #undef as_string
 }
@@ -4115,7 +4129,7 @@ static int encode_string(o_string *as_string,
 	if (ch != EOF)
 		nommu_addchr(as_string, ch);
 	if (ch == dquote_end) { /* may be only '"' or EOF */
-		debug_printf_parse("encode_string return 1 (ok)\n");
+		debug_printf_parse(("encode_string return 1 (ok)\n"));
 		return 1;
 	}
 	/* note: can't move it above ch == dquote_end check! */
@@ -4127,8 +4141,8 @@ static int encode_string(o_string *as_string,
 	if (ch != '\n') {
 		next = i_peek(input);
 	}
-	debug_printf_parse("\" ch=%c (%d) escape=%d\n",
-			ch, ch, !!(dest->o_expflags & EXP_FLAG_ESC_GLOB_CHARS));
+	debug_printf_parse(("\" ch=%c (%d) escape=%d\n",
+			ch, ch, !!(dest->o_expflags & EXP_FLAG_ESC_GLOB_CHARS)));
 	if (process_bkslash && ch == '\\') {
 		if (next == EOF) {
 			syntax_error("\\<eof>");
@@ -4153,8 +4167,8 @@ static int encode_string(o_string *as_string,
 	}
 	if (ch == '$') {
 		if (!parse_dollar(as_string, dest, input, /*quote_mask:*/ 0x80)) {
-			debug_printf_parse("encode_string return 0: "
-					"parse_dollar returned 0 (error)\n");
+			debug_printf_parse(("encode_string return 0: "
+					"parse_dollar returned 0 (error)\n"));
 			return 0;
 		}
 		goto again;
@@ -4167,7 +4181,7 @@ static int encode_string(o_string *as_string,
 		if (!add_till_backquote(dest, input, /*in_dquote:*/ dquote_end == '"'))
 			return 0; /* error */
 		o_addchr(dest, SPECIAL_VAR_SYMBOL);
-		//debug_printf_subst("SUBST RES3 '%s'\n", dest->data + pos);
+		//debug_printf_subst(("SUBST RES3 '%s'\n", dest->data + pos));
 		goto again;
 	}
 #endif
@@ -4195,8 +4209,8 @@ static struct pipe *parse_stream(char **pstring,
 	/* Single-quote triggers a bypass of the main loop until its mate is
 	 * found.  When recursing, quote state is passed in via dest->o_expflags.
 	 */
-	debug_printf_parse("parse_stream entered, end_trigger='%c'\n",
-			end_trigger ? end_trigger : 'X');
+	debug_printf_parse(("parse_stream entered, end_trigger='%c'\n",
+			end_trigger ? end_trigger : 'X'));
 	debug_enter();
 
 	/* If very first arg is "" or '', dest.data may end up NULL.
@@ -4222,8 +4236,8 @@ static struct pipe *parse_stream(char **pstring,
 		redir_type redir_style;
 
 		ch = i_getch(input);
-		debug_printf_parse(": ch=%c (%d) escape=%d\n",
-				ch, ch, !!(dest.o_expflags & EXP_FLAG_ESC_GLOB_CHARS));
+		debug_printf_parse((": ch=%c (%d) escape=%d\n",
+				ch, ch, !!(dest.o_expflags & EXP_FLAG_ESC_GLOB_CHARS)));
 		if (ch == EOF) {
 			struct pipe *pi;
 
@@ -4254,14 +4268,14 @@ static struct pipe *parse_stream(char **pstring,
 				pi = NULL;
 			}
 #if !BB_MMU
-			debug_printf_parse("as_string '%s'\n", ctx.as_string.data);
+			debug_printf_parse(("as_string '%s'\n", ctx.as_string.data));
 			if (pstring)
 				*pstring = ctx.as_string.data;
 			else
 				o_free_unsafe(&ctx.as_string);
 #endif
 			debug_leave();
-			debug_printf_parse("parse_stream return %p\n", pi);
+			debug_printf_parse(("parse_stream return %p\n", pi));
 			return pi;
 		}
 		nommu_addchr(&ctx.as_string, ch);
@@ -4298,7 +4312,7 @@ static struct pipe *parse_stream(char **pstring,
 			 && is_well_formed_var_name(dest.data, '=')
 			) {
 				dest.o_assignment = DEFINITELY_ASSIGNMENT;
-				debug_printf_parse("dest.o_assignment='%s'\n", assignment_flag[dest.o_assignment]);
+				debug_printf_parse(("dest.o_assignment='%s'\n", assignment_flag[dest.o_assignment]));
 			}
 			continue;
 		}
@@ -4340,7 +4354,7 @@ static struct pipe *parse_stream(char **pstring,
 				}
 				/* Treat newline as a command separator. */
 				done_pipe(&ctx, PIPE_SEQ);
-				debug_printf_parse("heredoc_cnt:%d\n", heredoc_cnt);
+				debug_printf_parse(("heredoc_cnt:%d\n", heredoc_cnt));
 				if (heredoc_cnt) {
 					if (fetch_heredocs(heredoc_cnt, &ctx, input)) {
 						goto parse_error;
@@ -4348,7 +4362,7 @@ static struct pipe *parse_stream(char **pstring,
 					heredoc_cnt = 0;
 				}
 				dest.o_assignment = MAYBE_ASSIGNMENT;
-				debug_printf_parse("dest.o_assignment='%s'\n", assignment_flag[dest.o_assignment]);
+				debug_printf_parse(("dest.o_assignment='%s'\n", assignment_flag[dest.o_assignment]));
 				ch = ';';
 				/* note: if (is_blank) continue;
 				 * will still trigger for us */
@@ -4398,23 +4412,23 @@ static struct pipe *parse_stream(char **pstring,
 			}
 			done_pipe(&ctx, PIPE_SEQ);
 			dest.o_assignment = MAYBE_ASSIGNMENT;
-			debug_printf_parse("dest.o_assignment='%s'\n", assignment_flag[dest.o_assignment]);
+			debug_printf_parse(("dest.o_assignment='%s'\n", assignment_flag[dest.o_assignment]));
 			/* Do we sit outside of any if's, loops or case's? */
 			if (!HAS_KEYWORDS
 			IF_HAS_KEYWORDS(|| (ctx.ctx_res_w == RES_NONE && ctx.old_flag == 0))
 			) {
 				o_free(&dest);
 #if !BB_MMU
-				debug_printf_parse("as_string '%s'\n", ctx.as_string.data);
+				debug_printf_parse(("as_string '%s'\n", ctx.as_string.data));
 				if (pstring)
 					*pstring = ctx.as_string.data;
 				else
 					o_free_unsafe(&ctx.as_string);
 #endif
 				debug_leave();
-				debug_printf_parse("parse_stream return %p: "
+				debug_printf_parse(("parse_stream return %p: "
 						"end_trigger char found\n",
-						ctx.list_head);
+						ctx.list_head));
 				return ctx.list_head;
 			}
 		}
@@ -4454,7 +4468,7 @@ static struct pipe *parse_stream(char **pstring,
 			if (next == '<') {
 				redir_style = REDIRECT_HEREDOC;
 				heredoc_cnt++;
-				debug_printf_parse("++heredoc_cnt=%d\n", heredoc_cnt);
+				debug_printf_parse(("++heredoc_cnt=%d\n", heredoc_cnt));
 				ch = i_getch(input);
 				nommu_addchr(&ctx.as_string, ch);
 			} else if (next == '>') {
@@ -4505,7 +4519,7 @@ static struct pipe *parse_stream(char **pstring,
 			/* ch is a special char and thus this word
 			 * cannot be an assignment */
 			dest.o_assignment = NOT_ASSIGNMENT;
-			debug_printf_parse("dest.o_assignment='%s'\n", assignment_flag[dest.o_assignment]);
+			debug_printf_parse(("dest.o_assignment='%s'\n", assignment_flag[dest.o_assignment]));
 		}
 
 		/* Note: nommu_addchr(&ctx.as_string, ch) is already done */
@@ -4531,8 +4545,8 @@ static struct pipe *parse_stream(char **pstring,
 			break;
 		case '$':
 			if (!parse_dollar(&ctx.as_string, &dest, input, /*quote_mask:*/ 0)) {
-				debug_printf_parse("parse_stream parse error: "
-					"parse_dollar returned 0 (error)\n");
+				debug_printf_parse(("parse_stream parse error: "
+					"parse_dollar returned 0 (error)\n"));
 				goto parse_error;
 			}
 			break;
@@ -4582,7 +4596,7 @@ static struct pipe *parse_stream(char **pstring,
 			o_addchr(&ctx.as_string, '`');
 # endif
 			o_addchr(&dest, SPECIAL_VAR_SYMBOL);
-			//debug_printf_subst("SUBST RES3 '%s'\n", dest.data + pos);
+			//debug_printf_subst(("SUBST RES3 '%s'\n", dest.data + pos));
 			break;
 		}
 #endif
@@ -4614,7 +4628,7 @@ static struct pipe *parse_stream(char **pstring,
 			/* We just finished a cmd. New one may start
 			 * with an assignment */
 			dest.o_assignment = MAYBE_ASSIGNMENT;
-			debug_printf_parse("dest.o_assignment='%s'\n", assignment_flag[dest.o_assignment]);
+			debug_printf_parse(("dest.o_assignment='%s'\n", assignment_flag[dest.o_assignment]));
 			break;
 		case '&':
 			if (done_word(&dest, &ctx)) {
@@ -4701,11 +4715,11 @@ static struct pipe *parse_stream(char **pstring,
 			/* Update pipe/command counts,
 			 * otherwise freeing may miss some */
 			done_pipe(pctx, PIPE_SEQ);
-			debug_printf_clean("freeing list %p from ctx %p\n",
-					pctx->list_head, pctx);
+			debug_printf_clean(("freeing list %p from ctx %p\n",
+					pctx->list_head, pctx));
 			debug_print_tree(pctx->list_head, 0);
 			free_pipe_list(pctx->list_head);
-			debug_printf_clean("freed list %p\n", pctx->list_head);
+			debug_printf_clean(("freed list %p\n", pctx->list_head));
 #if !BB_MMU
 			o_free_unsafe(&pctx->as_string);
 #endif
@@ -4912,7 +4926,7 @@ static char *strstr_pattern(char *val, const char *pattern, int *size)
 {
 	while (1) {
 		char *end = scan_and_match(val, pattern, SCAN_MOVE_FROM_RIGHT + SCAN_MATCH_LEFT_HALF);
-		debug_printf_varexp("val:'%s' pattern:'%s' end:'%s'\n", val, pattern, end);
+		debug_printf_varexp(("val:'%s' pattern:'%s' end:'%s'\n", val, pattern, end));
 		if (end) {
 			*size = end - val;
 			return val;
@@ -4944,7 +4958,7 @@ static char *replace_pattern(char *val, const char *pattern, const char *repl, c
 		res_len += s - val;
 		strcpy(result + res_len, repl);
 		res_len += repl_len;
-		debug_printf_varexp("val:'%s' s:'%s' result:'%s'\n", val, s, result);
+		debug_printf_varexp(("val:'%s' s:'%s' result:'%s'\n", val, s, result));
 
 		val = s + size;
 		if (exp_op == '/')
@@ -4953,9 +4967,9 @@ static char *replace_pattern(char *val, const char *pattern, const char *repl, c
 	if (val[0] && result) {
 		result = xrealloc(result, res_len + strlen(val) + 1);
 		strcpy(result + res_len, val);
-		debug_printf_varexp("val:'%s' result:'%s'\n", val, result);
+		debug_printf_varexp(("val:'%s' result:'%s'\n", val, result));
 	}
-	debug_printf_varexp("result:'%s'\n", result);
+	debug_printf_varexp(("result:'%s'\n", result));
 	return result;
 }
 #endif
@@ -5047,9 +5061,9 @@ static NOINLINE const char *expand_one_var(char **to_be_freed_pp, char *arg, cha
 	/* Handle any expansions */
 	if (exp_op == 'L') {
 		reinit_unicode_for_hush();
-		debug_printf_expand("expand: length(%s)=", val);
+		debug_printf_expand(("expand: length(%s)=", val));
 		val = utoa(val ? unicode_strlen(val) : 0);
-		debug_printf_expand("%s\n", val);
+		debug_printf_expand(("%s\n", val));
 	} else if (exp_op) {
 		if (exp_op == '%' || exp_op == '#') {
 			/* Standard-mandated substring removal ops:
@@ -5113,13 +5127,13 @@ static NOINLINE const char *expand_one_var(char **to_be_freed_pp, char *arg, cha
 				pattern = encode_then_expand_string(exp_word, /*process_bkslash:*/ 0, /*unbackslash:*/ 0);
 				if (!pattern)
 					pattern = xstrdup(exp_word);
-				debug_printf_varexp("pattern:'%s'->'%s'\n", exp_word, pattern);
+				debug_printf_varexp(("pattern:'%s'->'%s'\n", exp_word, pattern));
 				*p++ = SPECIAL_VAR_SYMBOL;
 				exp_word = p;
 				p = strchr(p, SPECIAL_VAR_SYMBOL);
 				*p = '\0';
 				repl = encode_then_expand_string(exp_word, /*process_bkslash:*/ arg0 & 0x80, /*unbackslash:*/ 1);
-				debug_printf_varexp("repl:'%s'->'%s'\n", exp_word, repl);
+				debug_printf_varexp(("repl:'%s'->'%s'\n", exp_word, repl));
 				/* HACK ALERT. We depend here on the fact that
 				 * G.global_argv and results of utoa and get_local_var_value
 				 * are actually in writable memory:
@@ -5148,7 +5162,7 @@ static NOINLINE const char *expand_one_var(char **to_be_freed_pp, char *arg, cha
 			beg = expand_and_evaluate_arith(exp_word, &errmsg);
 			if (errmsg)
 				goto arith_err;
-			debug_printf_varexp("beg:'%s'=%" PRIdMAX "\n", exp_word, (intmax_t)beg);
+			debug_printf_varexp(("beg:'%s'=%" PRIdMAX "\n", exp_word, (intmax_t)beg));
 			*p++ = SPECIAL_VAR_SYMBOL;
 			exp_word = p;
 			p = strchr(p, SPECIAL_VAR_SYMBOL);
@@ -5156,11 +5170,11 @@ static NOINLINE const char *expand_one_var(char **to_be_freed_pp, char *arg, cha
 			len = expand_and_evaluate_arith(exp_word, &errmsg);
 			if (errmsg)
 				goto arith_err;
-			debug_printf_varexp("len:'%s'=%" PRIdMAX "\n", exp_word, (intmax_t)len);
+			debug_printf_varexp(("len:'%s'=%" PRIdMAX "\n", exp_word, (intmax_t)len));
 			if (len >= 0) { /* bash compat: len < 0 is illegal */
 				if (beg < 0) /* bash compat */
 					beg = 0;
-				debug_printf_varexp("from val:'%s'\n", val);
+				debug_printf_varexp(("from val:'%s'\n", val));
 				if (len == 0 || !val || beg >= strlen(val)) {
  arith_err:
 					val = NULL;
@@ -5171,7 +5185,7 @@ static NOINLINE const char *expand_one_var(char **to_be_freed_pp, char *arg, cha
 						len = INT_MAX;
 					val = to_be_freed = xstrndup(val + beg, len);
 				}
-				debug_printf_varexp("val:'%s'\n", val);
+				debug_printf_varexp(("val:'%s'\n", val));
 			} else
 #endif
 			{
@@ -5204,8 +5218,8 @@ static NOINLINE const char *expand_one_var(char **to_be_freed_pp, char *arg, cha
 			int use_word = (!val || ((exp_save == ':') && !val[0]));
 			if (exp_op == '+')
 				use_word = !use_word;
-			debug_printf_expand("expand: op:%c (null:%s) test:%i\n", exp_op,
-					(exp_save == ':') ? "true" : "false", use_word);
+			debug_printf_expand(("expand: op:%c (null:%s) test:%i\n", exp_op,
+					(exp_save == ':') ? "true" : "false", use_word));
 			if (use_word) {
 				to_be_freed = encode_then_expand_string(exp_word, /*process_bkslash:*/ 1, /*unbackslash:*/ 1);
 				if (to_be_freed)
@@ -5259,8 +5273,8 @@ static NOINLINE int expand_vars_to_list(o_string *output, int n, char *arg)
 	int ended_in_ifs = 0;  /* did last unquoted expansion end with IFS chars? */
 	char *p;
 
-	debug_printf_expand("expand_vars_to_list: arg:'%s' singleword:%x\n", arg,
-			!!(output->o_expflags & EXP_FLAG_SINGLEWORD));
+	debug_printf_expand(("expand_vars_to_list: arg:'%s' singleword:%x\n", arg,
+			!!(output->o_expflags & EXP_FLAG_SINGLEWORD)));
 	debug_print_list("expand_vars_to_list", output, n);
 	n = o_save_ptr(output, n);
 	debug_print_list("expand_vars_to_list[0]", output, n);
@@ -5311,7 +5325,7 @@ static NOINLINE int expand_vars_to_list(o_string *output, int n, char *arg)
 			if (!(first_ch & 0x80)) { /* unquoted $* or $@ */
 				while (G.global_argv[i]) {
 					n = expand_on_ifs(NULL, output, n, G.global_argv[i]);
-					debug_printf_expand("expand_vars_to_list: argv %d (last %d)\n", i, G.global_argc - 1);
+					debug_printf_expand(("expand_vars_to_list: argv %d (last %d)\n", i, G.global_argc - 1));
 					if (G.global_argv[i++][0] && G.global_argv[i]) {
 						/* this argv[] is not empty and not last:
 						 * put terminating NUL, start new word */
@@ -5360,9 +5374,9 @@ static NOINLINE int expand_vars_to_list(o_string *output, int n, char *arg)
 			/* Can't just stuff it into output o_string,
 			 * expanded result may need to be globbed
 			 * and $IFS-splitted */
-			debug_printf_subst("SUBST '%s' first_ch %x\n", arg, first_ch);
+			debug_printf_subst(("SUBST '%s' first_ch %x\n", arg, first_ch));
 			G.last_exitcode = process_command_subs(&subst_result, arg);
-			debug_printf_subst("SUBST RES:%d '%s'\n", G.last_exitcode, subst_result.data);
+			debug_printf_subst(("SUBST RES:%d '%s'\n", G.last_exitcode, subst_result.data));
 			val = subst_result.data;
 			goto store_val;
 #endif
@@ -5372,9 +5386,9 @@ static NOINLINE int expand_vars_to_list(o_string *output, int n, char *arg)
 
 			arg++; /* skip '+' */
 			*p = '\0'; /* replace trailing <SPECIAL_VAR_SYMBOL> */
-			debug_printf_subst("ARITH '%s' first_ch %x\n", arg, first_ch);
+			debug_printf_subst(("ARITH '%s' first_ch %x\n", arg, first_ch));
 			res = expand_and_evaluate_arith(arg, NULL);
-			debug_printf_subst("ARITH RES '"ARITH_FMT"'\n", res);
+			debug_printf_subst(("ARITH RES '"ARITH_FMT"'\n", res));
 			sprintf(arith_buf, ARITH_FMT, res);
 			val = arith_buf;
 			break;
@@ -5384,16 +5398,16 @@ static NOINLINE int expand_vars_to_list(o_string *output, int n, char *arg)
 			val = expand_one_var(&to_be_freed, arg, &p);
  IF_HUSH_TICK(store_val:)
 			if (!(first_ch & 0x80)) { /* unquoted $VAR */
-				debug_printf_expand("unquoted '%s', output->o_escape:%d\n", val,
-						!!(output->o_expflags & EXP_FLAG_ESC_GLOB_CHARS));
+				debug_printf_expand(("unquoted '%s', output->o_escape:%d\n", val,
+						!!(output->o_expflags & EXP_FLAG_ESC_GLOB_CHARS)));
 				if (val && val[0]) {
 					n = expand_on_ifs(&ended_in_ifs, output, n, val);
 					val = NULL;
 				}
 			} else { /* quoted $VAR, val will be appended below */
 				output->has_quoted_part = 1;
-				debug_printf_expand("quoted '%s', output->o_escape:%d\n", val,
-						!!(output->o_expflags & EXP_FLAG_ESC_GLOB_CHARS));
+				debug_printf_expand(("quoted '%s', output->o_escape:%d\n", val,
+						!!(output->o_expflags & EXP_FLAG_ESC_GLOB_CHARS)));
 			}
 			break;
 
@@ -5484,14 +5498,14 @@ static char *expand_string_to_string(const char *str, int do_unbackslash)
 #endif
 	char *argv[2], **list;
 
-	debug_printf_expand("string_to_string<='%s'\n", str);
+	debug_printf_expand(("string_to_string<='%s'\n", str));
 	/* This is generally an optimization, but it also
 	 * handles "", which otherwise trips over !list[0] check below.
 	 * (is this ever happens that we actually get str="" here?)
 	 */
 	if (!strchr(str, SPECIAL_VAR_SYMBOL) && !strchr(str, '\\')) {
 		//TODO: Can use on strings with \ too, just unbackslash() them?
-		debug_printf_expand("string_to_string(fast)=>'%s'\n", str);
+		debug_printf_expand(("string_to_string(fast)=>'%s'\n", str));
 		return xstrdup(str);
 	}
 
@@ -5508,7 +5522,7 @@ static char *expand_string_to_string(const char *str, int do_unbackslash)
 	overlapping_strcpy((char*)list, list[0]);
 	if (do_unbackslash)
 		unbackslash((char*)list);
-	debug_printf_expand("string_to_string=>'%s'\n", (char*)list);
+	debug_printf_expand(("string_to_string=>'%s'\n", (char*)list));
 	return (char*)list;
 }
 
@@ -5531,7 +5545,7 @@ static char* expand_strvec_to_string(char **argv)
 		}
 	}
 	overlapping_strcpy((char*)list, list[0]);
-	debug_printf_expand("strvec_to_string='%s'\n", (char*)list);
+	debug_printf_expand(("strvec_to_string='%s'\n", (char*)list));
 	return (char*)list;
 }
 
@@ -5745,7 +5759,7 @@ static void re_execute_shell(char ***to_free, const char *s,
 	pp = environ;
 
  do_exec:
-	debug_printf_exec("re_execute_shell pid:%d cmd:'%s'\n", getpid(), s);
+	debug_printf_exec(("re_execute_shell pid:%d cmd:'%s'\n", getpid(), s));
 	/* Don't propagate SIG_IGN to the child */
 	if (SPECIAL_JOBSTOP_SIGS != 0)
 		switch_off_special_sigs(G.special_sig_mask & SPECIAL_JOBSTOP_SIGS);
@@ -5806,7 +5820,7 @@ static void parse_and_run_stream(struct in_str *inp, int end_trigger)
 			break;
 		}
 		debug_print_tree(pipe_list, 0);
-		debug_printf_exec("parse_and_run_stream: run_and_free_list\n");
+		debug_printf_exec(("parse_and_run_stream: run_and_free_list\n"));
 		run_and_free_list(pipe_list);
 		empty = 0;
 #if ENABLE_HUSH_FUNCTIONS
@@ -5981,13 +5995,13 @@ static int process_command_subs(o_string *dest, const char *s)
 		o_addQchr(dest, ch);
 	}
 
-	debug_printf("done reading from `cmd` pipe, closing it\n");
+	debug_printf(("done reading from `cmd` pipe, closing it\n"));
 	fclose(fp);
 	/* We need to extract exitcode. Test case
 	 * "true; echo `sleep 1; false` $?"
 	 * should print 1 */
 	safe_waitpid(pid, &status, 0);
-	debug_printf("child exited. returning its exitcode:%d\n", WEXITSTATUS(status));
+	debug_printf(("child exited. returning its exitcode:%d\n", WEXITSTATUS(status)));
 	return WEXITSTATUS(status);
 }
 #endif /* ENABLE_HUSH_TICK */
@@ -6091,8 +6105,8 @@ static int setup_redirects(struct command *prog, int squirrel[])
 			}
 			/* for REDIRECT_HEREDOC2, rd_filename holds _contents_
 			 * of the heredoc */
-			debug_printf_parse("set heredoc '%s'\n",
-					redir->rd_filename);
+			debug_printf_parse(("set heredoc '%s'\n",
+					redir->rd_filename));
 			setup_heredoc(redir);
 			continue;
 		}
@@ -6194,7 +6208,7 @@ static const struct built_in_command *find_builtin_helper(const char *name,
 			x++;
 			continue;
 		}
-		debug_printf_exec("found builtin '%s'\n", name);
+		debug_printf_exec(("found builtin '%s'\n", name));
 		return x;
 	}
 	return NULL;
@@ -6228,7 +6242,7 @@ static const struct function *find_function(const char *name)
 {
 	const struct function *funcp = *find_function_slot(name);
 	if (funcp)
-		debug_printf_exec("found function '%s'\n", name);
+		debug_printf_exec(("found function '%s'\n", name));
 	return funcp;
 }
 
@@ -6240,9 +6254,9 @@ static struct function *new_function(char *name)
 
 	if (funcp != NULL) {
 		struct command *cmd = funcp->parent_cmd;
-		debug_printf_exec("func %p parent_cmd %p\n", funcp, cmd);
+		debug_printf_exec(("func %p parent_cmd %p\n", funcp, cmd));
 		if (!cmd) {
-			debug_printf_exec("freeing & replacing function '%s'\n", funcp->name);
+			debug_printf_exec(("freeing & replacing function '%s'\n", funcp->name));
 			free(funcp->name);
 			/* Note: if !funcp->body, do not free body_as_string!
 			 * This is a special case of "-F name body" function:
@@ -6254,7 +6268,7 @@ static struct function *new_function(char *name)
 # endif
 			}
 		} else {
-			debug_printf_exec("reinserting in tree & replacing function '%s'\n", funcp->name);
+			debug_printf_exec(("reinserting in tree & replacing function '%s'\n", funcp->name));
 			cmd->argv[0] = funcp->name;
 			cmd->group = funcp->body;
 # if !BB_MMU
@@ -6262,7 +6276,7 @@ static struct function *new_function(char *name)
 # endif
 		}
 	} else {
-		debug_printf_exec("remembering new function '%s'\n", name);
+		debug_printf_exec(("remembering new function '%s'\n", name));
 		funcp = *funcpp = xzalloc(sizeof(*funcp));
 		/*funcp->next = NULL;*/
 	}
@@ -6277,7 +6291,7 @@ static void unset_func(const char *name)
 	struct function *funcp = *funcpp;
 
 	if (funcp != NULL) {
-		debug_printf_exec("freeing function '%s'\n", funcp->name);
+		debug_printf_exec(("freeing function '%s'\n", funcp->name));
 		*funcpp = funcp->next;
 		/* funcp is unlinked now, deleting it.
 		 * Note: if !funcp->body, the function was created by
@@ -6423,7 +6437,7 @@ static void exec_builtin(char ***to_free,
 static void execvp_or_die(char **argv) NORETURN;
 static void execvp_or_die(char **argv)
 {
-	debug_printf_exec("execing '%s'\n", argv[0]);
+	debug_printf_exec(("execing '%s'\n", argv[0]));
 	/* Don't propagate SIG_IGN to the child */
 	if (SPECIAL_JOBSTOP_SIGS != 0)
 		switch_off_special_sigs(G.special_sig_mask & SPECIAL_JOBSTOP_SIGS);
@@ -6552,12 +6566,12 @@ static NOINLINE void pseudo_exec_argv(nommu_save_t *nommu_save,
 		if (a >= 0) {
 # if BB_MMU /* see above why on NOMMU it is not allowed */
 			if (APPLET_IS_NOEXEC(a)) {
-				debug_printf_exec("running applet '%s'\n", argv[0]);
+				debug_printf_exec(("running applet '%s'\n", argv[0]));
 				run_applet_no_and_exit(a, argv);
 			}
 # endif
 			/* Re-exec ourselves */
-			debug_printf_exec("re-execing applet '%s'\n", argv[0]);
+			debug_printf_exec(("re-execing applet '%s'\n", argv[0]));
 			/* Don't propagate SIG_IGN to the child */
 			if (SPECIAL_JOBSTOP_SIGS != 0)
 				switch_off_special_sigs(G.special_sig_mask & SPECIAL_JOBSTOP_SIGS);
@@ -6597,7 +6611,7 @@ static void pseudo_exec(nommu_save_t *nommu_save,
 		 */
 #if BB_MMU
 		int rcode;
-		debug_printf_exec("pseudo_exec: run_list\n");
+		debug_printf_exec(("pseudo_exec: run_list\n"));
 		reset_traps_to_defaults();
 		rcode = run_list(command->group);
 		/* OK to leak memory by not calling free_pipe_list,
@@ -6613,7 +6627,7 @@ static void pseudo_exec(nommu_save_t *nommu_save,
 	}
 
 	/* Case when we are here: ... | >file */
-	debug_printf_exec("pseudo_exec'ed null command\n");
+	debug_printf_exec(("pseudo_exec'ed null command\n"));
 	_exit(EXIT_SUCCESS);
 }
 
@@ -6722,7 +6736,7 @@ static int checkjobs(struct pipe *fg_pipe)
 	pid_t childpid;
 	int rcode = 0;
 
-	debug_printf_jobs("checkjobs %p\n", fg_pipe);
+	debug_printf_jobs(("checkjobs %p\n", fg_pipe));
 
 	attributes = WUNTRACED;
 	if (fg_pipe == NULL)
@@ -6781,20 +6795,20 @@ static int checkjobs(struct pipe *fg_pipe)
 
 #if DEBUG_JOBS
 		if (WIFSTOPPED(status))
-			debug_printf_jobs("pid %d stopped by sig %d (exitcode %d)\n",
-					childpid, WSTOPSIG(status), WEXITSTATUS(status));
+			debug_printf_jobs(("pid %d stopped by sig %d (exitcode %d)\n",
+					childpid, WSTOPSIG(status), WEXITSTATUS(status)));
 		if (WIFSIGNALED(status))
-			debug_printf_jobs("pid %d killed by sig %d (exitcode %d)\n",
-					childpid, WTERMSIG(status), WEXITSTATUS(status));
+			debug_printf_jobs(("pid %d killed by sig %d (exitcode %d)\n",
+					childpid, WTERMSIG(status), WEXITSTATUS(status)));
 		if (WIFEXITED(status))
-			debug_printf_jobs("pid %d exited, exitcode %d\n",
-					childpid, WEXITSTATUS(status));
+			debug_printf_jobs(("pid %d exited, exitcode %d\n",
+					childpid, WEXITSTATUS(status)));
 #endif
 		/* Were we asked to wait for fg pipe? */
 		if (fg_pipe) {
 			i = fg_pipe->num_cmds;
 			while (--i >= 0) {
-				debug_printf_jobs("check pid %d\n", fg_pipe->cmds[i].pid);
+				debug_printf_jobs(("check pid %d\n", fg_pipe->cmds[i].pid));
 				if (fg_pipe->cmds[i].pid != childpid)
 					continue;
 				if (dead) {
@@ -6820,8 +6834,8 @@ static int checkjobs(struct pipe *fg_pipe)
 				} else {
 					fg_pipe->stopped_cmds++;
 				}
-				debug_printf_jobs("fg_pipe: alive_cmds %d stopped_cmds %d\n",
-						fg_pipe->alive_cmds, fg_pipe->stopped_cmds);
+				debug_printf_jobs(("fg_pipe: alive_cmds %d stopped_cmds %d\n",
+						fg_pipe->alive_cmds, fg_pipe->stopped_cmds));
 				if (fg_pipe->alive_cmds == fg_pipe->stopped_cmds) {
 					/* All processes in fg pipe have exited or stopped */
 					i = fg_pipe->num_cmds;
@@ -6862,7 +6876,7 @@ static int checkjobs(struct pipe *fg_pipe)
 			}
 		}
 		/* Happens when shell is used as init process (init=/bin/sh) */
-		debug_printf("checkjobs: pid %d was not in our list!\n", childpid);
+		debug_printf(("checkjobs: pid %d was not in our list!\n", childpid));
 		continue; /* do waitpid again */
 
  found_pi_and_prognum:
@@ -6894,7 +6908,7 @@ static int checkjobs_and_fg_shell(struct pipe *fg_pipe)
 	if (G_saved_tty_pgrp) {
 		/* Job finished, move the shell to the foreground */
 		p = getpgrp(); /* our process group id */
-		debug_printf_jobs("fg'ing ourself: getpgrp()=%d\n", (int)p);
+		debug_printf_jobs(("fg'ing ourself: getpgrp()=%d\n", (int)p));
 		tcsetpgrp(G_interactive_fd, p);
 	}
 	return rcode;
@@ -6976,7 +6990,7 @@ static NOINLINE int run_pipe(struct pipe *pi)
 	int squirrel[] = { -1, -1, -1 };
 	int rcode;
 
-	debug_printf_exec("run_pipe start: members:%d\n", pi->num_cmds);
+	debug_printf_exec(("run_pipe start: members:%d\n", pi->num_cmds));
 	debug_enter();
 
 	/* Testcase: set -- q w e; (IFS='' echo "$*"; IFS=''; echo "$*"); echo "$*"
@@ -7000,8 +7014,8 @@ static NOINLINE int run_pipe(struct pipe *pi)
 
 	pi->alive_cmds = 1;
 
-	debug_printf_exec(": group:%p argv:'%s'\n",
-		command->group, command->argv ? command->argv[0] : "NONE");
+	debug_printf_exec((": group:%p argv:'%s'\n",
+		command->group, command->argv ? command->argv[0] : "NONE"));
 
 	if (command->group) {
 #if ENABLE_HUSH_FUNCTIONS
@@ -7018,26 +7032,26 @@ static NOINLINE int run_pipe(struct pipe *pi)
 # endif
 			command->group = NULL;
 			command->argv[0] = NULL;
-			debug_printf_exec("cmd %p has child func at %p\n", command, funcp);
+			debug_printf_exec(("cmd %p has child func at %p\n", command, funcp));
 			funcp->parent_cmd = command;
 			command->child_func = funcp;
 
-			debug_printf_exec("run_pipe: return EXIT_SUCCESS\n");
+			debug_printf_exec(("run_pipe: return EXIT_SUCCESS\n"));
 			debug_leave();
 			return EXIT_SUCCESS;
 		}
 #endif
 		/* { list } */
-		debug_printf("non-subshell group\n");
+		debug_printf(("non-subshell group\n"));
 		rcode = 1; /* exitcode if redir failed */
 		if (setup_redirects(command, squirrel) == 0) {
-			debug_printf_exec(": run_list\n");
+			debug_printf_exec((": run_list\n"));
 			rcode = run_list(command->group) & 0xff;
 		}
 		restore_redirects(squirrel);
 		IF_HAS_KEYWORDS(if (pi->pi_inverted) rcode = !rcode;)
 		debug_leave();
-		debug_printf_exec("run_pipe: return %d\n", rcode);
+		debug_printf_exec(("run_pipe: return %d\n", rcode));
 		return rcode;
 	}
 
@@ -7088,8 +7102,8 @@ static NOINLINE int run_pipe(struct pipe *pi)
 				char *p = expand_string_to_string(*argv, /*unbackslash:*/ 1);
 				if (G_x_mode)
 					fprintf(stderr, " %s", p);
-				debug_printf_exec("set shell var:'%s'->'%s'\n",
-						*argv, p);
+				debug_printf_exec(("set shell var:'%s'->'%s'\n",
+						*argv, p));
 				set_local_var(p, /*exp:*/ 0, /*lvl:*/ 0, /*ro:*/ 0);
 				/* Do we need to flag set_local_var() errors?
 				 * "assignment to readonly var" and "putenv error"
@@ -7105,7 +7119,7 @@ static NOINLINE int run_pipe(struct pipe *pi)
 				rcode = G.last_exitcode;
 			IF_HAS_KEYWORDS(if (pi->pi_inverted) rcode = !rcode;)
 			debug_leave();
-			debug_printf_exec("run_pipe: return %d\n", rcode);
+			debug_printf_exec(("run_pipe: return %d\n", rcode));
 			return rcode;
 #endif
 		}
@@ -7136,7 +7150,7 @@ static NOINLINE int run_pipe(struct pipe *pi)
 		if (x || funcp) {
 			if (!funcp) {
 				if (x->b_function == builtin_exec && argv_expanded[1] == NULL) {
-					debug_printf("exec with redirects only\n");
+					debug_printf(("exec with redirects only\n"));
 					rcode = setup_redirects(command, NULL);
 					goto clean_up_and_ret1;
 				}
@@ -7144,8 +7158,8 @@ static NOINLINE int run_pipe(struct pipe *pi)
 			rcode = redirect_and_varexp_helper(&new_env, &old_vars, command, squirrel, argv_expanded);
 			if (rcode == 0) {
 				if (!funcp) {
-					debug_printf_exec(": builtin '%s' '%s'...\n",
-						x->b_cmd, argv_expanded[1]);
+					debug_printf_exec((": builtin '%s' '%s'...\n",
+						x->b_cmd, argv_expanded[1]));
 					fflush_all();
 					rcode = x->b_function(argv_expanded) & 0xff;
 					fflush_all();
@@ -7157,8 +7171,8 @@ static NOINLINE int run_pipe(struct pipe *pi)
 					sv = G.shadowed_vars_pp;
 					G.shadowed_vars_pp = &old_vars;
 # endif
-					debug_printf_exec(": function '%s' '%s'...\n",
-						funcp->name, argv_expanded[1]);
+					debug_printf_exec((": function '%s' '%s'...\n",
+						funcp->name, argv_expanded[1]));
 					rcode = run_function(funcp, argv_expanded) & 0xff;
 # if ENABLE_HUSH_LOCAL
 					G.shadowed_vars_pp = sv;
@@ -7175,7 +7189,7 @@ static NOINLINE int run_pipe(struct pipe *pi)
 			free(argv_expanded);
 			IF_HAS_KEYWORDS(if (pi->pi_inverted) rcode = !rcode;)
 			debug_leave();
-			debug_printf_exec("run_pipe return %d\n", rcode);
+			debug_printf_exec(("run_pipe return %d\n", rcode));
 			return rcode;
 		}
 
@@ -7184,8 +7198,8 @@ static NOINLINE int run_pipe(struct pipe *pi)
 			if (n >= 0 && APPLET_IS_NOFORK(n)) {
 				rcode = redirect_and_varexp_helper(&new_env, &old_vars, command, squirrel, argv_expanded);
 				if (rcode == 0) {
-					debug_printf_exec(": run_nofork_applet '%s' '%s'...\n",
-						argv_expanded[0], argv_expanded[1]);
+					debug_printf_exec((": run_nofork_applet '%s' '%s'...\n",
+						argv_expanded[0], argv_expanded[1]));
 					rcode = run_nofork_applet(n, argv_expanded);
 				}
 				goto clean_up_and_ret;
@@ -7216,10 +7230,10 @@ static NOINLINE int run_pipe(struct pipe *pi)
 		command = &pi->cmds[cmd_no];
 		cmd_no++;
 		if (command->argv) {
-			debug_printf_exec(": pipe member '%s' '%s'...\n",
-					command->argv[0], command->argv[1]);
+			debug_printf_exec((": pipe member '%s' '%s'...\n",
+					command->argv[0], command->argv[1]));
 		} else {
-			debug_printf_exec(": pipe member with no argv\n");
+			debug_printf_exec((": pipe member with no argv\n"));
 		}
 
 		/* pipes are inserted between pairs of commands */
@@ -7281,12 +7295,12 @@ static NOINLINE int run_pipe(struct pipe *pi)
 
 	if (!pi->alive_cmds) {
 		debug_leave();
-		debug_printf_exec("run_pipe return 1 (all forks failed, no children)\n");
+		debug_printf_exec(("run_pipe return 1 (all forks failed, no children)\n"));
 		return 1;
 	}
 
 	debug_leave();
-	debug_printf_exec("run_pipe return -1 (%u children started)\n", pi->alive_cmds);
+	debug_printf_exec(("run_pipe return -1 (%u children started)\n", pi->alive_cmds));
 	return -1;
 }
 	
@@ -7364,7 +7378,7 @@ static int run_list(struct pipe *pi)
 	smallint last_rword; /* ditto */
 #endif
 
-	debug_printf_exec("run_list start lvl %d\n", G.run_list_level);
+	debug_printf_exec(("run_list start lvl %d\n", G.run_list_level));
 	debug_enter();
 
 #if ENABLE_HUSH_LOOPS
@@ -7378,7 +7392,7 @@ static int run_list(struct pipe *pi)
 			if (cpipe->next == NULL) {
 				syntax_error("malformed for");
 				debug_leave();
-				debug_printf_exec("run_list lvl %d return 1\n", G.run_list_level);
+				debug_printf_exec(("run_list lvl %d return 1\n", G.run_list_level));
 				return 1;
 			}
 			/* "FOR v; do ..." and "for v IN a b; do..." are ok */
@@ -7390,7 +7404,7 @@ static int run_list(struct pipe *pi)
 			) {
 				syntax_error("malformed for");
 				debug_leave();
-				debug_printf_exec("run_list lvl %d return 1\n", G.run_list_level);
+				debug_printf_exec(("run_list lvl %d return 1\n", G.run_list_level));
 				return 1;
 			}
 		}
@@ -7418,8 +7432,8 @@ static int run_list(struct pipe *pi)
 			break;
 
 		IF_HAS_KEYWORDS(rword = pi->res_word;)
-		debug_printf_exec(": rword=%d cond_code=%d last_rword=%d\n",
-				rword, cond_code, last_rword);
+		debug_printf_exec((": rword=%d cond_code=%d last_rword=%d\n",
+				rword, cond_code, last_rword));
 #if ENABLE_HUSH_LOOPS
 		if ((rword == RES_WHILE || rword == RES_UNTIL || rword == RES_FOR)
 		 && loop_top == NULL /* avoid bumping G.depth_of_loop twice */
@@ -7436,7 +7450,7 @@ static int run_list(struct pipe *pi)
 			) {
 				/* It is "<true> || CMD" or "<false> && CMD"
 				 * and we should not execute CMD */
-				debug_printf_exec("skipped cmd because of || or &&\n");
+				debug_printf_exec(("skipped cmd because of || or &&\n"));
 				last_followup = pi->followup;
 				goto dont_check_jobs_but_continue;
 			}
@@ -7477,7 +7491,7 @@ static int run_list(struct pipe *pi)
 					/* if no variable values after "in" we skip "for" */
 					if (!pi->next->cmds[0].argv) {
 						G.last_exitcode = rcode = EXIT_SUCCESS;
-						debug_printf_exec(": null FOR: exitcode EXIT_SUCCESS\n");
+						debug_printf_exec((": null FOR: exitcode EXIT_SUCCESS\n"));
 						break;
 					}
 					vals = pi->next->cmds[0].argv;
@@ -7551,7 +7565,7 @@ static int run_list(struct pipe *pi)
 		 * to execute this pipe. NB: have to do checkjobs(NULL)
 		 * after run_pipe to collect any background children,
 		 * even if list execution is to be stopped. */
-		debug_printf_exec(": run_pipe with %d members\n", pi->num_cmds);
+		debug_printf_exec((": run_pipe with %d members\n", pi->num_cmds));
 		{
 			int r;
 #if ENABLE_HUSH_LOOPS
@@ -7563,7 +7577,7 @@ static int run_list(struct pipe *pi)
 				 * rcode is already known
 				 * and we don't need to wait for anything. */
 				G.last_exitcode = rcode;
-				debug_printf_exec(": builtin/func exitcode %d\n", rcode);
+				debug_printf_exec((": builtin/func exitcode %d\n", rcode));
 				check_and_run_traps();
 #if ENABLE_HUSH_LOOPS
 				/* Was it "break" or "continue"? */
@@ -7605,19 +7619,19 @@ static int run_list(struct pipe *pi)
 				/* Last command's pid goes to $! */
 				G.last_bg_pid = pi->cmds[pi->num_cmds - 1].pid;
 				G.last_exitcode = rcode = EXIT_SUCCESS;
-				debug_printf_exec(": cmd&: exitcode EXIT_SUCCESS\n");
+				debug_printf_exec((": cmd&: exitcode EXIT_SUCCESS\n"));
 			} else {
 #if ENABLE_HUSH_JOB
 				if (G.run_list_level == 1 && G_interactive_fd) {
 					/* Waits for completion, then fg's main shell */
 					rcode = checkjobs_and_fg_shell(pi);
-					debug_printf_exec(": checkjobs_and_fg_shell exitcode %d\n", rcode);
+					debug_printf_exec((": checkjobs_and_fg_shell exitcode %d\n", rcode));
 					check_and_run_traps();
 				} else
 #endif
 				{ /* This one just waits for completion */
 					rcode = checkjobs(pi);
-					debug_printf_exec(": checkjobs exitcode %d\n", rcode);
+					debug_printf_exec((": checkjobs exitcode %d\n", rcode));
 					check_and_run_traps();
 				}
 				G.last_exitcode = rcode;
@@ -7642,13 +7656,13 @@ static int run_list(struct pipe *pi)
 				if (rcode) {
 					/* "while false; do...done" - exitcode 0 */
 					G.last_exitcode = rcode = EXIT_SUCCESS;
-					debug_printf_exec(": while expr is false: breaking (exitcode:EXIT_SUCCESS)\n");
+					debug_printf_exec((": while expr is false: breaking (exitcode:EXIT_SUCCESS)\n"));
 					break;
 				}
 			}
 			if (rword == RES_UNTIL) {
 				if (!rcode) {
-					debug_printf_exec(": until expr is true: breaking\n");
+					debug_printf_exec((": until expr is true: breaking\n"));
 					break;
 				}
 			}
@@ -7668,7 +7682,7 @@ static int run_list(struct pipe *pi)
 	free(case_word);
 #endif
 	debug_leave();
-	debug_printf_exec("run_list lvl %d return %d\n", G.run_list_level + 1, rcode);
+	debug_printf_exec(("run_list lvl %d return %d\n", G.run_list_level + 1, rcode));
 	return rcode;
 }
 
@@ -7676,16 +7690,16 @@ static int run_list(struct pipe *pi)
 static int run_and_free_list(struct pipe *pi)
 {
 	int rcode = 0;
-	debug_printf_exec("run_and_free_list entered\n");
+	debug_printf_exec(("run_and_free_list entered\n"));
 	if (!G.o_opt[OPT_O_NOEXEC]) {
-		debug_printf_exec(": run_list: 1st pipe with %d cmds\n", pi->num_cmds);
+		debug_printf_exec((": run_list: 1st pipe with %d cmds\n", pi->num_cmds));
 		rcode = run_list(pi);
 	}
 	/* free_pipe_list has the side effect of clearing memory.
 	 * In the long run that function can be merged with run_list,
 	 * but doing that now would hobble the debugging effort. */
 	free_pipe_list(pi);
-	debug_printf_exec("run_and_free_list return %d\n", rcode);
+	debug_printf_exec(("run_and_free_list return %d\n", rcode));
 	return rcode;
 }
 
@@ -7838,7 +7852,7 @@ int hush_main(int argc, char **argv)
 	shell_ver->varstr = xstrdup(hush_version_str);
 	/* Create shell local variables from the values
 	 * currently living in the environment */
-	debug_printf_env("unsetenv '%s'\n", "HUSH_VERSION");
+	debug_printf_env(("unsetenv '%s'\n", "HUSH_VERSION"));
 	unsetenv("HUSH_VERSION"); /* in case it exists in initial env */
 	G.top_var = shell_ver;
 	cur_var = G.top_var;
@@ -7855,7 +7869,7 @@ int hush_main(int argc, char **argv)
 		e++;
 	}
 	/* (Re)insert HUSH_VERSION into env (AFTER we scanned the env!) */
-	debug_printf_env("putenv '%s'\n", shell_ver->varstr);
+	debug_printf_env(("putenv '%s'\n", shell_ver->varstr));
 	putenv(shell_ver->varstr);
 
 	/* Export PWD */
@@ -8073,7 +8087,7 @@ int hush_main(int argc, char **argv)
 	/* If we are login shell... */
 	if (flags & OPT_login) {
 		FILE *input;
-		debug_printf("sourcing /etc/profile\n");
+		debug_printf(("sourcing /etc/profile\n"));
 		input = fopen_for_read("/etc/profile");
 		if (input != NULL) {
 			close_on_exec_on(fileno(input));
@@ -8099,7 +8113,7 @@ int hush_main(int argc, char **argv)
 		 */
 		G.global_argc--;
 		G.global_argv++;
-		debug_printf("running script '%s'\n", G.global_argv[0]);
+		debug_printf(("running script '%s'\n", G.global_argv[0]));
 		input = xfopen_for_read(G.global_argv[0]);
 		close_on_exec_on(fileno(input));
 		install_special_sighandlers();
@@ -8125,7 +8139,7 @@ int hush_main(int argc, char **argv)
 #if ENABLE_HUSH_JOB
 	if (isatty(STDIN_FILENO) && isatty(STDOUT_FILENO)) {
 		G_saved_tty_pgrp = tcgetpgrp(STDIN_FILENO);
-		debug_printf("saved_tty_pgrp:%d\n", G_saved_tty_pgrp);
+		debug_printf(("saved_tty_pgrp:%d\n", G_saved_tty_pgrp));
 		if (G_saved_tty_pgrp < 0)
 			G_saved_tty_pgrp = 0;
 
@@ -8143,7 +8157,7 @@ int hush_main(int argc, char **argv)
 // TODO: track & disallow any attempts of user
 // to (inadvertently) close/redirect G_interactive_fd
 	}
-	debug_printf("interactive_fd:%d\n", G_interactive_fd);
+	debug_printf(("interactive_fd:%d\n", G_interactive_fd));
 	if (G_interactive_fd) {
 		close_on_exec_on(G_interactive_fd);
 
@@ -8362,7 +8376,7 @@ static int FAST_FUNC builtin_exec(char **argv)
 
 static int FAST_FUNC builtin_exit(char **argv)
 {
-	debug_printf_exec("%s()\n", __func__);
+	debug_printf_exec(("%s()\n", __func__));
 
 	/* interactive bash:
 	 * # trap "echo EEE" EXIT
@@ -8428,7 +8442,7 @@ static void helper_export_local(char **argv, int exp, int lvl)
 				/* export -n NAME (without =VALUE) */
 				if (var) {
 					var->flg_export = 0;
-					debug_printf_env("%s: unsetenv '%s'\n", __func__, name);
+					debug_printf_env(("%s: unsetenv '%s'\n", __func__, name));
 					unsetenv(name);
 				} /* else: export -n NOT_EXISTING_VAR: no-op */
 				continue;
@@ -8437,7 +8451,7 @@ static void helper_export_local(char **argv, int exp, int lvl)
 				/* export NAME (without =VALUE) */
 				if (var) {
 					var->flg_export = 1;
-					debug_printf_env("%s: putenv '%s'\n", __func__, var->varstr);
+					debug_printf_env(("%s: putenv '%s'\n", __func__, var->varstr));
 					putenv(var->varstr);
 					continue;
 				}
@@ -8564,8 +8578,8 @@ static int FAST_FUNC builtin_trap(char **argv)
 			free(G.traps[sig]);
 			G.traps[sig] = xstrdup(new_cmd);
 
-			debug_printf("trap: setting SIG%s (%i) to '%s'\n",
-				get_signame(sig), sig, G.traps[sig]);
+			debug_printf(("trap: setting SIG%s (%i) to '%s'\n",
+				get_signame(sig), sig, G.traps[sig]));
 
 			/* There is no signal for 0 (EXIT) */
 			if (sig == 0)
@@ -8679,9 +8693,9 @@ static int FAST_FUNC builtin_fg_bg(char **argv)
 	}
 
 	/* Restart the processes in the job */
-	debug_printf_jobs("reviving %d procs, pgrp %d\n", pi->num_cmds, pi->pgrp);
+	debug_printf_jobs(("reviving %d procs, pgrp %d\n", pi->num_cmds, pi->pgrp));
 	for (i = 0; i < pi->num_cmds; i++) {
-		debug_printf_jobs("reviving pid %d\n", pi->cmds[i].pid);
+		debug_printf_jobs(("reviving pid %d\n", pi->cmds[i].pid));
 	}
 	pi->stopped_cmds = 0;
 
