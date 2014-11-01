@@ -7,6 +7,7 @@ shell/match.c \
 shell/math.c \
 shell/random.c \
 shell/shell_common.c \
+shell/glob.c \
 coreutils/echo.c \
 coreutils/test.c \
 coreutils/test_ptr_hack.c \

@@ -88,7 +88,7 @@
     )
 # include <malloc.h>   /* for malloc_trim */
 #endif
-#include <glob.h>
+#include "glob.h"
 /* #include <dmalloc.h> */
 #if ENABLE_HUSH_CASE
 # include <fnmatch.h>
