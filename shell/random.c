@@ -37,7 +37,7 @@ next_random(random_t *rnd)
 	/* Galois LFSR parameter:
 	 * Taps at 32 31 29 1:
 	 */
-	enum { MASK = 0x8000000b };
+	const uint32_t MASK = 0x8000000b;
 	/* Another example - taps at 32 31 30 10: */
 	/* enum { MASK = 0x00400007 }; */
 
@@ -48,7 +48,7 @@ next_random(random_t *rnd)
         enum {
                 a = 2,
                 b = 7,
-                c = 3,
+                c = 3
         };
 
 	uint32_t t;

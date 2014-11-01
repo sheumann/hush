@@ -6117,7 +6117,7 @@ static void xforked_grandchild(void *args_struct) {
 
 /* squirrel != NULL means we squirrel away copies of stdin, stdout,
  * and stderr if they are redirected. */
-static int setup_redirects(struct command *prog, int squirrel[])
+static int setup_redirects(struct command *prog, int *squirrel)
 {
 	int openfd, mode;
 	struct redir_struct *redir;
@@ -6756,7 +6756,11 @@ static void delete_finished_bg_job(struct pipe *pi)
 static int checkjobs(struct pipe *fg_pipe)
 {
 	int attributes;
+#ifndef __GNO__
 	int status;
+#else
+	union wait status;
+#endif
 #if ENABLE_HUSH_JOB
 	struct pipe *pi;
 #endif
@@ -7854,7 +7858,7 @@ int hush_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
 int hush_main(int argc, char **argv)
 {
 	enum {
-		OPT_login = (1 << 0),
+		OPT_login = (1 << 0)
 	};
 	unsigned flags;
 	int opt;
@@ -9122,7 +9126,11 @@ static int FAST_FUNC builtin_unset(char **argv)
 static int FAST_FUNC builtin_wait(char **argv)
 {
 	int ret = EXIT_SUCCESS;
+#ifndef __GNO__
 	int status;
+#else
+	union wait status;
+#endif
 
 	argv = skip_dash_dash(argv);
 	if (argv[0] == NULL) {
