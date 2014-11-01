@@ -15,7 +15,7 @@ PUSH_AND_SET_FUNCTION_VISIBILITY_TO_HIDDEN
 enum {
 	UNICODE_UNKNOWN = 0,
 	UNICODE_OFF = 1,
-	UNICODE_ON = 2,
+	UNICODE_ON = 2
 };
 
 #define unicode_bidi_isrtl(wc) 0
@@ -56,7 +56,7 @@ size_t FAST_FUNC unicode_strlen(const char *string);
 /* Width on terminal */
 size_t FAST_FUNC unicode_strwidth(const char *string);
 enum {
-	UNI_FLAG_PAD = (1 << 0),
+	UNI_FLAG_PAD = (1 << 0)
 };
 //UNUSED: unsigned FAST_FUNC unicode_padding_to_width(unsigned width, const char *src);
 //UNUSED: char* FAST_FUNC unicode_conv_to_printable2(uni_stat_t *stats, const char *src, unsigned width, int flags);

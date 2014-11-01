@@ -1,6 +1,6 @@
 cc -std=c99 -funsigned-char \
 -Wall -Wno-format-security -Wno-comment -o hush \
--Iinclude  -include include/autoconf.h \
+-Iinclude \
 -Dhush_main=main -DNDEBUG  -D"BB_VER=KBUILD_STR(1.22.1)" -D"KBUILD_STR(s)=#s" \
 shell/hush.c \
 shell/match.c \

@@ -11,7 +11,7 @@ enum {
 	SCAN_MOVE_FROM_LEFT = (1 << 0),
 	SCAN_MOVE_FROM_RIGHT = (1 << 1),
 	SCAN_MATCH_LEFT_HALF = (1 << 2),
-	SCAN_MATCH_RIGHT_HALF = (1 << 3),
+	SCAN_MATCH_RIGHT_HALF = (1 << 3)
 };
 
 char* FAST_FUNC scan_and_match(char *string, const char *pattern, unsigned flags);

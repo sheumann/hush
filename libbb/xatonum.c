@@ -9,18 +9,6 @@
 
 #include "libbb.h"
 
-#define type long long
-#define xstrtou(rest) xstrtoull##rest
-#define xstrto(rest) xstrtoll##rest
-#define xatou(rest) xatoull##rest
-#define xato(rest) xatoll##rest
-#define XSTR_UTYPE_MAX ULLONG_MAX
-#define XSTR_TYPE_MAX LLONG_MAX
-#define XSTR_TYPE_MIN LLONG_MIN
-#define XSTR_STRTOU strtoull
-#include "xatonum_template.c"
-
-#if ULONG_MAX != ULLONG_MAX
 #define type long
 #define xstrtou(rest) xstrtoul##rest
 #define xstrto(rest) xstrtol##rest
@@ -31,7 +19,6 @@
 #define XSTR_TYPE_MIN LONG_MIN
 #define XSTR_STRTOU strtoul
 #include "xatonum_template.c"
-#endif
 
 #if UINT_MAX != ULONG_MAX
 static ALWAYS_INLINE

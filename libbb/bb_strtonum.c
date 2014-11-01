@@ -51,46 +51,6 @@ static unsigned long long handle_errors(unsigned long long v, char **endp)
 	return v;
 }
 
-
-unsigned long long FAST_FUNC bb_strtoull(const char *arg, char **endp, int base)
-{
-	unsigned long long v;
-	char *endptr;
-
-	if (!endp) endp = &endptr;
-	*endp = (char*) arg;
-
-	/* strtoul("  -4200000000") returns 94967296, errno 0 (!) */
-	/* I don't think that this is right. Preventing this... */
-	if (!isalnum(arg[0])) return ret_ERANGE();
-
-	/* not 100% correct for lib func, but convenient for the caller */
-	errno = 0;
-	v = strtoull(arg, endp, base);
-	return handle_errors(v, endp);
-}
-
-long long FAST_FUNC bb_strtoll(const char *arg, char **endp, int base)
-{
-	unsigned long long v;
-	char *endptr;
-	char first;
-
-	if (!endp) endp = &endptr;
-	*endp = (char*) arg;
-
-	/* Check for the weird "feature":
-	 * a "-" string is apparently a valid "number" for strto[u]l[l]!
-	 * It returns zero and errno is 0! :( */
-	first = (arg[0] != '-' ? arg[0] : arg[1]);
-	if (!isalnum(first)) return ret_ERANGE();
-
-	errno = 0;
-	v = strtoll(arg, endp, base);
-	return handle_errors(v, endp);
-}
-
-#if ULONG_MAX != ULLONG_MAX
 unsigned long FAST_FUNC bb_strtoul(const char *arg, char **endp, int base)
 {
 	unsigned long v;
@@ -121,7 +81,6 @@ long FAST_FUNC bb_strtol(const char *arg, char **endp, int base)
 	v = strtol(arg, endp, base);
 	return handle_errors(v, endp);
 }
-#endif
 
 #if UINT_MAX != ULONG_MAX
 unsigned FAST_FUNC bb_strtou(const char *arg, char **endp, int base)

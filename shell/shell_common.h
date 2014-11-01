@@ -30,7 +30,7 @@ int FAST_FUNC is_well_formed_var_name(const char *s, char terminator);
 
 enum {
 	BUILTIN_READ_SILENT = 1 << 0,
-	BUILTIN_READ_RAW    = 1 << 1,
+	BUILTIN_READ_RAW    = 1 << 1
 };
 const char* FAST_FUNC
 shell_builtin_read(void FAST_FUNC (*setvar)(const char *name, const char *val),

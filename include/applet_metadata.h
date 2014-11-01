@@ -14,10 +14,10 @@ typedef enum bb_install_loc_t {
 	BB_DIR_SBIN,
 #if ENABLE_INSTALL_NO_USR
 	BB_DIR_USR_BIN  = BB_DIR_BIN,
-	BB_DIR_USR_SBIN = BB_DIR_SBIN,
+	BB_DIR_USR_SBIN = BB_DIR_SBIN
 #else
 	BB_DIR_USR_BIN,
-	BB_DIR_USR_SBIN,
+	BB_DIR_USR_SBIN
 #endif
 } bb_install_loc_t;
 

@@ -73,7 +73,7 @@ int echo_main(int argc UNUSED_PARAM, char **argv)
 #if !ENABLE_FEATURE_FANCY_ECHO
 	enum {
 		eflag = '\\',
-		nflag = 1,  /* 1 -- print '\n' */
+		nflag = 1  /* 1 -- print '\n' */
 	};
 
 	argv++;

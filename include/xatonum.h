@@ -28,9 +28,6 @@ type xato##T##_range(const char *str, type l, type u) FAST_FUNC; \
 type xato##T##_sfx(const char *str, const struct suffix_mult *sfx) FAST_FUNC; \
 type xato##T(const char *str) FAST_FUNC; \
 
-/* Unsigned long long functions always exist */
-DECLARE_STR_CONV(long long, ll, ull)
-
 
 /* Provides inline definitions of functions */
 /* (useful for mapping them to the type of the same width) */
@@ -82,34 +79,16 @@ static ALWAYS_INLINE \
 narrow xato##N(const char *str) \
 { return xato##W(str); } \
 
-/* If long == long long, then just map them one-to-one */
-#if ULONG_MAX == ULLONG_MAX
-DEFINE_EQUIV_STR_CONV(long, l, ll, ul, ull)
-#else
-/* Else provide extern defs */
 DECLARE_STR_CONV(long, l, ul)
-#endif
 
 /* Same for int -> [long] long */
-#if UINT_MAX == ULLONG_MAX
-DEFINE_EQUIV_STR_CONV(int, i, ll, u, ull)
-#elif UINT_MAX == ULONG_MAX
+#if UINT_MAX == ULONG_MAX
 DEFINE_EQUIV_STR_CONV(int, i, l, u, ul)
 #else
 DECLARE_STR_CONV(int, i, u)
 #endif
 
 /* Specialized */
-
-uint32_t BUG_xatou32_unimplemented(void);
-static ALWAYS_INLINE uint32_t xatou32(const char *numstr)
-{
-	if (UINT_MAX == 0xffffffff)
-		return xatou(numstr);
-	if (ULONG_MAX == 0xffffffff)
-		return xatoul(numstr);
-	return BUG_xatou32_unimplemented();
-}
 
 /* Non-aborting kind of convertors: bb_strto[u][l]l */
 
@@ -124,29 +103,11 @@ static ALWAYS_INLINE uint32_t xatou32(const char *numstr)
  *    return value is all-ones in this case.
  */
 
-unsigned long long bb_strtoull(const char *arg, char **endp, int base) FAST_FUNC;
-long long bb_strtoll(const char *arg, char **endp, int base) FAST_FUNC;
 
-#if ULONG_MAX == ULLONG_MAX
-static ALWAYS_INLINE
-unsigned long bb_strtoul(const char *arg, char **endp, int base)
-{ return bb_strtoull(arg, endp, base); }
-static ALWAYS_INLINE
-long bb_strtol(const char *arg, char **endp, int base)
-{ return bb_strtoll(arg, endp, base); }
-#else
 unsigned long bb_strtoul(const char *arg, char **endp, int base) FAST_FUNC;
 long bb_strtol(const char *arg, char **endp, int base) FAST_FUNC;
-#endif
 
-#if UINT_MAX == ULLONG_MAX
-static ALWAYS_INLINE
-unsigned bb_strtou(const char *arg, char **endp, int base)
-{ return bb_strtoull(arg, endp, base); }
-static ALWAYS_INLINE
-int bb_strtoi(const char *arg, char **endp, int base)
-{ return bb_strtoll(arg, endp, base); }
-#elif UINT_MAX == ULONG_MAX
+#if UINT_MAX == ULONG_MAX
 static ALWAYS_INLINE
 unsigned bb_strtou(const char *arg, char **endp, int base)
 { return bb_strtoul(arg, endp, base); }

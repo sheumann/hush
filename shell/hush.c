@@ -81,8 +81,10 @@
  *              $ "export" i=`echo 'aaa  bbb'`; echo "$i"
  *              aaa
  */
+#include "autoconf.h"
+
 #if !(defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) \
-	|| defined(__APPLE__) \
+	|| defined(__APPLE__) || defined(__GNO__) \
     )
 # include <malloc.h>   /* for malloc_trim */
 #endif
@@ -300,8 +302,8 @@
 # undef USE_FOR_NOMMU
 # undef USE_FOR_MMU
 # define BB_MMU 0
-# define USE_FOR_NOMMU(...) __VA_ARGS__
-# define USE_FOR_MMU(...)
+# define USE_FOR_NOMMU(x) x
+# define USE_FOR_MMU(x)
 #endif
 
 #include "NUM_APPLETS.h"
@@ -312,8 +314,8 @@
 # undef IF_FEATURE_SH_STANDALONE
 # undef IF_NOT_FEATURE_SH_STANDALONE
 # define ENABLE_FEATURE_SH_STANDALONE 0
-# define IF_FEATURE_SH_STANDALONE(...)
-# define IF_NOT_FEATURE_SH_STANDALONE(...) __VA_ARGS__
+# define IF_FEATURE_SH_STANDALONE(x)
+# define IF_NOT_FEATURE_SH_STANDALONE(x) x
 #endif
 
 #if !ENABLE_HUSH_INTERACTIVE
@@ -328,12 +330,12 @@
 /* Do we support ANY keywords? */
 #if ENABLE_HUSH_IF || ENABLE_HUSH_LOOPS || ENABLE_HUSH_CASE
 # define HAS_KEYWORDS 1
-# define IF_HAS_KEYWORDS(...) __VA_ARGS__
-# define IF_HAS_NO_KEYWORDS(...)
+# define IF_HAS_KEYWORDS(x) x
+# define IF_HAS_NO_KEYWORDS(x)
 #else
 # define HAS_KEYWORDS 0
-# define IF_HAS_KEYWORDS(...)
-# define IF_HAS_NO_KEYWORDS(...) __VA_ARGS__
+# define IF_HAS_KEYWORDS(x)
+# define IF_HAS_NO_KEYWORDS(x) x
 #endif
 
 /* If you comment out one of these below, it will be #defined later
@@ -636,7 +638,7 @@ struct parse_context {
  * Neither of these (de)allocates the strings.
  * setenv allocates new strings in malloc space and does putenv,
  * and thus setenv is unusable (leaky) for shell's purposes */
-#define setenv(...) setenv_is_leaky_dont_use()
+#define setenv(x) setenv_is_leaky_dont_use()
 struct variable {
 	struct variable *next;
 	char *varstr;        /* points to "name=" portion */
@@ -5670,7 +5672,9 @@ static void re_execute_shell(char ***to_free, const char *s,
 			, (unsigned) G.last_exitcode
 			, cnt
 			, empty_trap_mask
-			IF_HUSH_LOOPS(, G.depth_of_loop)
+# if ENABLE_HUSH_LOOPS
+			, G.depth_of_loop
+# endif
 			);
 # undef NOMMU_HACK_FMT
 	/* 1:hush 2:-$<pid>:<pid>:<exitcode>:<etc...> <vars...> <funcs...>
@@ -8008,7 +8012,7 @@ int hush_main(int argc, char **argv)
 			optarg++;
 			builtin_argc = bb_strtou(optarg, &optarg, 16);
 			optarg++;
-			empty_trap_mask = bb_strtoull(optarg, &optarg, 16);
+			empty_trap_mask = bb_strtoul(optarg, &optarg, 16);
 			if (empty_trap_mask != 0) {
 				int sig;
 				install_special_sighandlers();

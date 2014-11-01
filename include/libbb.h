@@ -16,7 +16,6 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <inttypes.h>
 #include <netdb.h>
 #include <setjmp.h>
 #include <signal.h>
@@ -26,7 +25,6 @@
 # define sigemptyset(s)   __sigemptyset(s)
 # define sigisemptyset(s) __sigisemptyset(s)
 #endif
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -34,12 +32,14 @@
 #include <string.h>
 /* There are two incompatible basename's, let's not use them! */
 /* See the dirname/basename man page for details */
-#include <libgen.h> /* dirname,basename */
 #undef basename
 #define basename dont_use_basename
-#include <poll.h>
+#ifndef __GNO__
+# include <poll.h>
+#else
+//TODO Deal with lack of poll in GNO
+#endif
 #include <sys/ioctl.h>
-#include <sys/mman.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -64,12 +64,6 @@
 #if defined(ANDROID) || defined(__ANDROID__)
 # define endpwent() ((void)0)
 # define endgrent() ((void)0)
-#endif
-#ifdef HAVE_MNTENT_H
-# include <mntent.h>
-#endif
-#ifdef HAVE_SYS_STATFS_H
-# include <sys/statfs.h>
 #endif
 /* Don't do this here:
  * #include <sys/sysinfo.h>
@@ -298,11 +292,6 @@ extern int *const bb_errno;
 #define errno (*bb_errno)
 #endif
 
-#if !(ULONG_MAX > 0xffffffff)
-/* Only 32-bit CPUs need this, 64-bit ones use inlined version */
-uint64_t bb_bswap_64(uint64_t x) FAST_FUNC;
-#endif
-
 unsigned long monotonic_sec(void) FAST_FUNC;
 
 extern void chomp(char *s) FAST_FUNC;
@@ -330,9 +319,7 @@ enum {	/* DO NOT CHANGE THESE VALUES!  cp.c, mv.c, install.c depend on them. */
 	FILEUTILS_PRESERVE_SECURITY_CONTEXT = 1 << 9, /* -c */
 	FILEUTILS_SET_SECURITY_CONTEXT = 1 << 10,
 #endif
-	FILEUTILS_IGNORE_CHMOD_ERR = 1 << 11,
-	/* -v */
-	FILEUTILS_VERBOSE         = (1 << 12) * ENABLE_FEATURE_VERBOSE,
+	FILEUTILS_IGNORE_CHMOD_ERR = 1 << 11
 };
 #define FILEUTILS_CP_OPTSTR "pdRfilsLH" IF_SELINUX("c")
 extern int remove_file(const char *path, int flags) FAST_FUNC;
@@ -349,7 +336,7 @@ enum {
 	ACTION_DEPTHFIRST     = (1 << 3),
 	/*ACTION_REVERSE      = (1 << 4), - unused */
 	ACTION_QUIET          = (1 << 5),
-	ACTION_DANGLING_OK    = (1 << 6),
+	ACTION_DANGLING_OK    = (1 << 6)
 };
 typedef uint8_t recurse_flags_t;
 extern int recursive_action(const char *fileName, unsigned flags,
@@ -436,7 +423,7 @@ enum {
 		+ (1LL << SIGXFSZ)   // File size limit exceeded
 		+ (1LL << SIGUSR1)   // Yes kids, these are also fatal!
 		+ (1LL << SIGUSR2)
-		+ 0),
+		+ 0)
 };
 void bb_signals(int sigs, void (*f)(int)) FAST_FUNC;
 /* Unlike signal() and bb_signals, sets handler with sigaction()
@@ -497,33 +484,6 @@ struct fd_pair { int rd; int wr; };
 #define piped_pair(pair)  pipe(&((pair).rd))
 #define xpiped_pair(pair) xpipe(&((pair).rd))
 
-/* Useful for having small structure members/global variables */
-typedef int8_t socktype_t;
-typedef int8_t family_t;
-struct BUG_too_small {
-	char BUG_socktype_t_too_small[(0
-			| SOCK_STREAM
-			| SOCK_DGRAM
-			| SOCK_RDM
-			| SOCK_SEQPACKET
-			| SOCK_RAW
-			) <= 127 ? 1 : -1];
-	char BUG_family_t_too_small[(0
-			| AF_UNSPEC
-			| AF_INET
-			| AF_INET6
-			| AF_UNIX
-#ifdef AF_PACKET
-			| AF_PACKET
-#endif
-#ifdef AF_NETLINK
-			| AF_NETLINK
-#endif
-			/* | AF_DECnet */
-			/* | AF_IPX */
-			) <= 127 ? 1 : -1];
-};
-
 
 void parse_datestr(const char *date_str, struct tm *ptm) FAST_FUNC;
 time_t validate_tm_time(const char *date_str, struct tm *ptm) FAST_FUNC;
@@ -557,18 +517,7 @@ typedef struct len_and_sockaddr {
 #endif
 	} u;
 } len_and_sockaddr;
-enum {
-	LSA_LEN_SIZE = offsetof(len_and_sockaddr, u),
-	LSA_SIZEOF_SA = sizeof(
-		union {
-			struct sockaddr sa;
-			struct sockaddr_in sin;
-#if ENABLE_FEATURE_IPV6
-			struct sockaddr_in6 sin6;
-#endif
-		}
-	)
-};
+
 /* Create stream socket, and allocate suitable lsa.
  * (lsa of correct size and lsa->sa.sa_family (AF_INET/AF_INET6))
  * af == AF_UNSPEC will result in trying to create IPv6 socket,
@@ -688,7 +637,7 @@ void fputc_printable(int ch, FILE *file) FAST_FUNC;
  * Buffer must hold at least four characters. */
 enum {
 	VISIBLE_ENDLINE   = 1 << 0,
-	VISIBLE_SHOW_TABS = 1 << 1,
+	VISIBLE_SHOW_TABS = 1 << 1
 };
 void visible(unsigned ch, char *buf, int flags) FAST_FUNC;
 
@@ -745,17 +694,6 @@ unsigned bb_clk_tck(void) FAST_FUNC;
  || ENABLE_FEATURE_SEAMLESS_BZ2 \
  || ENABLE_FEATURE_SEAMLESS_GZ \
  || ENABLE_FEATURE_SEAMLESS_Z)
-
-#if SEAMLESS_COMPRESSION
-/* Autodetects gzip/bzip2 formats. fd may be in the middle of the file! */
-extern int setup_unzip_on_fd(int fd, int fail_if_not_compressed) FAST_FUNC;
-/* Autodetects .gz etc */
-extern int open_zipped(const char *fname, int fail_if_not_compressed) FAST_FUNC;
-#else
-# define setup_unzip_on_fd(...) (0)
-# define open_zipped(fname, fail_if_not_compressed)  open((fname), O_RDONLY);
-#endif
-extern void *xmalloc_open_zipped_read_close(const char *fname, size_t *maxsz_p) FAST_FUNC RETURNS_MALLOC;
 
 extern ssize_t safe_write(int fd, const void *buf, size_t count) FAST_FUNC;
 // NB: will return short write on error, not -1,
@@ -817,7 +755,11 @@ void qsort_string_vector(char **sv, unsigned count) FAST_FUNC;
  * On other errors complains [perror("poll")] and returns.
  * Warning! May take (much) longer than timeout_ms to return!
  * If this is a problem, use bare poll and open-code EINTR/ENOMEM handling */
+#ifndef __GNO__
 int safe_poll(struct pollfd *ufds, nfds_t nfds, int timeout_ms) FAST_FUNC;
+#else
+//TODO Deal with lack of poll in GNO
+#endif
 
 char *safe_gethostname(void) FAST_FUNC;
 
@@ -933,7 +875,6 @@ int BB_EXECVP(const char *file, char *const argv[]) FAST_FUNC;
 	} while (0)
 #else
 #define BB_EXECVP(prog,cmd)     execvp(prog,cmd)
-#define BB_EXECLP(prog,cmd,...) execlp(prog,cmd,__VA_ARGS__)
 #endif
 int BB_EXECVP_or_die(char **argv) NORETURN FAST_FUNC;
 
@@ -998,7 +939,7 @@ enum {
 	DAEMON_DEVNULL_STDIO = 2,
 	DAEMON_CLOSE_EXTRA_FDS = 4,
 	DAEMON_ONLY_SANITIZE = 8, /* internal use */
-	DAEMON_DOUBLE_FORK = 16, /* double fork to avoid controlling tty */
+	DAEMON_DOUBLE_FORK = 16 /* double fork to avoid controlling tty */
 };
 #if BB_MMU
   enum { re_execed = 0 };
@@ -1010,7 +951,6 @@ enum {
   /* Note: re_exec() and fork_or_rexec() do argv[0][0] |= 0x80 on NOMMU!
    * _Parent_ needs to undo it if it doesn't want to have argv[0] mangled.
    */
-  void re_exec(char **argv) NORETURN FAST_FUNC;
   pid_t fork_or_rexec(char **argv) FAST_FUNC;
   int  BUG_fork_is_unavailable_on_nommu(void) FAST_FUNC;
   int  BUG_daemon_is_unavailable_on_nommu(void) FAST_FUNC;
@@ -1077,9 +1017,7 @@ enum { wrote_pidfile = 0 };
 
 enum {
 	LOGMODE_NONE = 0,
-	LOGMODE_STDIO = (1 << 0),
-	LOGMODE_SYSLOG = (1 << 1) * ENABLE_FEATURE_SYSLOG,
-	LOGMODE_BOTH = LOGMODE_SYSLOG + LOGMODE_STDIO,
+	LOGMODE_STDIO = (1 << 0)
 };
 extern const char *msg_eol;
 extern smallint syslog_level;
@@ -1115,14 +1053,14 @@ extern void bb_verror_msg(const char *s, va_list p, const char *strerr) FAST_FUN
 /* Applets which are useful from another applets */
 int bb_cat(char** argv);
 /* If shell needs them, they exist even if not enabled as applets */
-int echo_main(int argc, char** argv) IF_ECHO(MAIN_EXTERNALLY_VISIBLE);
-int printf_main(int argc, char **argv) IF_PRINTF(MAIN_EXTERNALLY_VISIBLE);
-int test_main(int argc, char **argv) IF_TEST(MAIN_EXTERNALLY_VISIBLE);
-int kill_main(int argc, char **argv) IF_KILL(MAIN_EXTERNALLY_VISIBLE);
+int echo_main(int argc, char** argv);
+int printf_main(int argc, char **argv);
+int test_main(int argc, char **argv);
+int kill_main(int argc, char **argv);
 /* Similar, but used by chgrp, not shell */
-int chown_main(int argc, char **argv) IF_CHOWN(MAIN_EXTERNALLY_VISIBLE);
+int chown_main(int argc, char **argv);
 /* Used by ftpd */
-int ls_main(int argc, char **argv) IF_LS(MAIN_EXTERNALLY_VISIBLE);
+int ls_main(int argc, char **argv);
 /* Don't need IF_xxx() guard for these */
 int gunzip_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
 int bunzip2_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
@@ -1208,23 +1146,6 @@ int bb_parse_mode(const char* s, mode_t* theMode) FAST_FUNC;
 /*
  * Config file parser
  */
-enum {
-	PARSE_COLLAPSE  = 0x00010000, // treat consecutive delimiters as one
-	PARSE_TRIM      = 0x00020000, // trim leading and trailing delimiters
-// TODO: COLLAPSE and TRIM seem to always go in pair
-	PARSE_GREEDY    = 0x00040000, // last token takes entire remainder of the line
-	PARSE_MIN_DIE   = 0x00100000, // die if < min tokens found
-	// keep a copy of current line
-	PARSE_KEEP_COPY = 0x00200000 * ENABLE_FEATURE_CROND_D,
-	PARSE_EOL_COMMENTS = 0x00400000, // comments are recognized even if they aren't the first char
-	// NORMAL is:
-	// * remove leading and trailing delimiters and collapse
-	//   multiple delimiters into one
-	// * warn and continue if less than mintokens delimiters found
-	// * grab everything into last token
-	// * comments are recognized even if they aren't the first char
-	PARSE_NORMAL    = PARSE_COLLAPSE | PARSE_TRIM | PARSE_GREEDY | PARSE_EOL_COMMENTS,
-};
 typedef struct parser_t {
 	FILE *fp;
 	char *data;
@@ -1449,7 +1370,7 @@ enum {
  * -1: poll(-1) (i.e. block);
  * >=0: poll for TIMEOUT milliseconds, return -1/EAGAIN on timeout
  */
-int64_t read_key(int fd, char *buffer, int timeout) FAST_FUNC;
+int32_t read_key(int fd, char *buffer, int timeout) FAST_FUNC;
 void read_key_ungets(char *buffer, const char *str, unsigned len) FAST_FUNC;
 
 
@@ -1487,7 +1408,7 @@ enum {
 	USERNAME_COMPLETION = 4 * ENABLE_FEATURE_USERNAME_COMPLETION,
 	VI_MODE          = 8 * ENABLE_FEATURE_EDITING_VI,
 	WITH_PATH_LOOKUP = 0x10,
-	FOR_SHELL        = DO_HISTORY | TAB_COMPLETION | USERNAME_COMPLETION,
+	FOR_SHELL        = DO_HISTORY | TAB_COMPLETION | USERNAME_COMPLETION
 };
 line_input_t *new_line_input_t(int flags) FAST_FUNC;
 /* So far static: void free_line_input_t(line_input_t *n) FAST_FUNC; */
@@ -1542,82 +1463,7 @@ struct smaprec {
 int FAST_FUNC procps_read_smaps(pid_t pid, struct smaprec *total,
 		void (*cb)(struct smaprec *, void *), void *data);
 
-typedef struct procps_status_t {
-	DIR *dir;
-	IF_FEATURE_SHOW_THREADS(DIR *task_dir;)
-	uint8_t shift_pages_to_bytes;
-	uint8_t shift_pages_to_kb;
-/* Fields are set to 0/NULL if failed to determine (or not requested) */
-	uint16_t argv_len;
-	char *argv0;
-	char *exe;
-	IF_SELINUX(char *context;)
-	IF_FEATURE_SHOW_THREADS(unsigned main_thread_pid;)
-	/* Everything below must contain no ptrs to malloc'ed data:
-	 * it is memset(0) for each process in procps_scan() */
-	unsigned long vsz, rss; /* we round it to kbytes */
-	unsigned long stime, utime;
-	unsigned long start_time;
-	unsigned pid;
-	unsigned ppid;
-	unsigned pgid;
-	unsigned sid;
-	unsigned uid;
-	unsigned gid;
-#if ENABLE_FEATURE_PS_ADDITIONAL_COLUMNS
-	unsigned ruid;
-	unsigned rgid;
-	int niceness;
-#endif
-	unsigned tty_major,tty_minor;
-#if ENABLE_FEATURE_TOPMEM
-	struct smaprec smaps;
-#endif
-	char state[4];
-	/* basename of executable in exec(2), read from /proc/N/stat
-	 * (if executable is symlink or script, it is NOT replaced
-	 * by link target or interpreter name) */
-	char comm[COMM_LEN];
-	/* user/group? - use passwd/group parsing functions */
-#if ENABLE_FEATURE_TOP_SMP_PROCESS
-	int last_seen_on_cpu;
-#endif
-} procps_status_t;
-/* flag bits for procps_scan(xx, flags) calls */
-enum {
-	PSSCAN_PID      = 1 << 0,
-	PSSCAN_PPID     = 1 << 1,
-	PSSCAN_PGID     = 1 << 2,
-	PSSCAN_SID      = 1 << 3,
-	PSSCAN_UIDGID   = 1 << 4,
-	PSSCAN_COMM     = 1 << 5,
-	/* PSSCAN_CMD      = 1 << 6, - use read_cmdline instead */
-	PSSCAN_ARGV0    = 1 << 7,
-	PSSCAN_EXE      = 1 << 8,
-	PSSCAN_STATE    = 1 << 9,
-	PSSCAN_VSZ      = 1 << 10,
-	PSSCAN_RSS      = 1 << 11,
-	PSSCAN_STIME    = 1 << 12,
-	PSSCAN_UTIME    = 1 << 13,
-	PSSCAN_TTY      = 1 << 14,
-	PSSCAN_SMAPS	= (1 << 15) * ENABLE_FEATURE_TOPMEM,
-	/* NB: used by find_pid_by_name(). Any applet using it
-	 * needs to be mentioned here. */
-	PSSCAN_ARGVN    = (1 << 16) * (ENABLE_KILLALL
-				|| ENABLE_PGREP || ENABLE_PKILL
-				|| ENABLE_PIDOF
-				|| ENABLE_SESTATUS
-				),
-	PSSCAN_CONTEXT  = (1 << 17) * ENABLE_SELINUX,
-	PSSCAN_START_TIME = 1 << 18,
-	PSSCAN_CPU      = (1 << 19) * ENABLE_FEATURE_TOP_SMP_PROCESS,
-	PSSCAN_NICE     = (1 << 20) * ENABLE_FEATURE_PS_ADDITIONAL_COLUMNS,
-	PSSCAN_RUIDGID  = (1 << 21) * ENABLE_FEATURE_PS_ADDITIONAL_COLUMNS,
-	PSSCAN_TASKS	= (1 << 22) * ENABLE_FEATURE_SHOW_THREADS,
-};
-//procps_status_t* alloc_procps_scan(void) FAST_FUNC;
-void free_procps_scan(procps_status_t* sp) FAST_FUNC;
-procps_status_t* procps_scan(procps_status_t* sp, int flags) FAST_FUNC;
+
 /* Format cmdline (up to col chars) into char buf[size] */
 /* Puts [comm] if cmdline is empty (-> process is a kernel thread) */
 void read_cmdline(char *buf, int size, unsigned pid, const char *comm) FAST_FUNC;
@@ -1635,50 +1481,6 @@ unsigned get_cpu_count(void) FAST_FUNC;
  */
 char *percent_decode_in_place(char *str, int strict) FAST_FUNC;
 
-
-extern const char bb_uuenc_tbl_base64[] ALIGN1;
-extern const char bb_uuenc_tbl_std[] ALIGN1;
-void bb_uuencode(char *store, const void *s, int length, const char *tbl) FAST_FUNC;
-enum {
-	BASE64_FLAG_UU_STOP = 0x100,
-	/* Sign-extends to a value which never matches fgetc result: */
-	BASE64_FLAG_NO_STOP_CHAR = 0x80,
-};
-const char *decode_base64(char **pp_dst, const char *src) FAST_FUNC;
-void read_base64(FILE *src_stream, FILE *dst_stream, int flags) FAST_FUNC;
-
-typedef struct md5_ctx_t {
-	uint8_t wbuffer[64]; /* always correctly aligned for uint64_t */
-	void (*process_block)(struct md5_ctx_t*) FAST_FUNC;
-	uint64_t total64;    /* must be directly before hash[] */
-	uint32_t hash[8];    /* 4 elements for md5, 5 for sha1, 8 for sha256 */
-} md5_ctx_t;
-typedef struct md5_ctx_t sha1_ctx_t;
-typedef struct md5_ctx_t sha256_ctx_t;
-typedef struct sha512_ctx_t {
-	uint64_t total64[2];  /* must be directly before hash[] */
-	uint64_t hash[8];
-	uint8_t wbuffer[128]; /* always correctly aligned for uint64_t */
-} sha512_ctx_t;
-typedef struct sha3_ctx_t {
-	uint64_t state[25];
-	unsigned bytes_queued;
-} sha3_ctx_t;
-void md5_begin(md5_ctx_t *ctx) FAST_FUNC;
-void md5_hash(md5_ctx_t *ctx, const void *buffer, size_t len) FAST_FUNC;
-void md5_end(md5_ctx_t *ctx, void *resbuf) FAST_FUNC;
-void sha1_begin(sha1_ctx_t *ctx) FAST_FUNC;
-#define sha1_hash md5_hash
-void sha1_end(sha1_ctx_t *ctx, void *resbuf) FAST_FUNC;
-void sha256_begin(sha256_ctx_t *ctx) FAST_FUNC;
-#define sha256_hash md5_hash
-#define sha256_end  sha1_end
-void sha512_begin(sha512_ctx_t *ctx) FAST_FUNC;
-void sha512_hash(sha512_ctx_t *ctx, const void *buffer, size_t len) FAST_FUNC;
-void sha512_end(sha512_ctx_t *ctx, void *resbuf) FAST_FUNC;
-void sha3_begin(sha3_ctx_t *ctx) FAST_FUNC;
-void sha3_hash(sha3_ctx_t *ctx, const void *buffer, size_t len) FAST_FUNC;
-void sha3_end(sha3_ctx_t *ctx, void *resbuf) FAST_FUNC;
 
 extern uint32_t *global_crc32_table;
 uint32_t *crc32_filltable(uint32_t *tbl256, int endian) FAST_FUNC;

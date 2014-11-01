@@ -459,10 +459,8 @@ shell_builtin_ulimit(char **argv)
 					else {
 						if (sizeof(val) == sizeof(int))
 							val = bb_strtou(val_str, NULL, 10);
-						else if (sizeof(val) == sizeof(long))
-							val = bb_strtoul(val_str, NULL, 10);
 						else
-							val = bb_strtoull(val_str, NULL, 10);
+							val = bb_strtoul(val_str, NULL, 10);
 						if (errno) {
 							bb_error_msg("invalid number '%s'", val_str);
 							return EXIT_FAILURE;

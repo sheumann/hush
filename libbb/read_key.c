@@ -9,7 +9,7 @@
  */
 #include "libbb.h"
 
-int64_t FAST_FUNC read_key(int fd, char *buffer, int timeout)
+int32_t FAST_FUNC read_key(int fd, char *buffer, int timeout)
 {
 	struct pollfd pfd;
 	const char *seq;
@@ -224,6 +224,8 @@ int64_t FAST_FUNC read_key(int fd, char *buffer, int timeout)
 		}
 		n++;
 		/* Try to decipher "ESC [ NNN ; NNN R" sequence */
+#if (ENABLE_FEATURE_EDITING_ASK_TERMINAL || ENABLE_FEATURE_VI_ASK_TERMINAL || ENABLE_FEATURE_LESS_ASK_TERMINAL)
+# error "read_key's return value would have to be 64-bit to support this"
 		if ((ENABLE_FEATURE_EDITING_ASK_TERMINAL
 		    || ENABLE_FEATURE_VI_ASK_TERMINAL
 		    || ENABLE_FEATURE_LESS_ASK_TERMINAL
@@ -251,6 +253,7 @@ int64_t FAST_FUNC read_key(int fd, char *buffer, int timeout)
 			/* Return it in high-order word */
 			return ((int64_t) col << 32) | (uint32_t)KEYCODE_CURSOR_POS;
 		}
+#endif
 	}
  got_all:
 

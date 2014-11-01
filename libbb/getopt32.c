@@ -7,6 +7,8 @@
  * Licensed under GPLv2 or later, see file LICENSE in this source tree.
  */
 
+#include "autoconf.h"
+
 #if ENABLE_LONG_OPTS || ENABLE_FEATURE_GETOPT_LONG
 # include <getopt.h>
 #endif
