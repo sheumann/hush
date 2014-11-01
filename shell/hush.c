@@ -6008,6 +6008,15 @@ static int process_command_subs(o_string *dest, const char *s)
 #endif /* ENABLE_HUSH_TICK */
 
 
+static void xvforked_child(void *) NORETURN;
+static void xforked_grandchild(void *) NORETURN;
+struct grandchild_args {
+	struct redir_struct *redir;
+	struct fd_pair *pair_p;
+	char ***to_free_p;
+	const char *heredoc;
+};
+
 static void setup_heredoc(struct redir_struct *redir)
 {
 	struct fd_pair pair;
@@ -6057,23 +6066,15 @@ static void setup_heredoc(struct redir_struct *redir)
 #if !BB_MMU
 	to_free = NULL;
 #endif
-	pid = xvfork();
-	if (pid == 0) {
-		/* child */
-		disable_restore_tty_pgrp_on_exit();
-		pid = BB_MMU ? xfork() : xvfork();
-		if (pid != 0)
-			_exit(0);
-		/* grandchild */
-		close(redir->rd_fd); /* read side of the pipe */
-#if BB_MMU
-		full_write(pair.wr, heredoc, len); /* may loop or block */
-		_exit(0);
-#else
-		/* Delegate blocking writes to another process */
-		xmove_fd(pair.wr, STDOUT_FILENO);
-		re_execute_shell(&to_free, heredoc, NULL, NULL, NULL);
-#endif
+
+	{
+		struct grandchild_args args = {
+			redir,
+			&pair,
+			&to_free,
+			heredoc
+		};
+		pid = xvfork_and_run(xvforked_child, &args);
 	}
 	/* parent */
 #if ENABLE_HUSH_FAST
@@ -6088,6 +6089,31 @@ static void setup_heredoc(struct redir_struct *redir)
 	free(expanded);
 	wait(NULL); /* wait till child has died */
 }
+
+static void xvforked_child(void *grandchild_args) {
+	/* child */
+	pid_t pid;
+	disable_restore_tty_pgrp_on_exit();
+	pid = BB_MMU ? xfork() : xvfork_and_run(xforked_grandchild, grandchild_args);
+	if (pid != 0)
+		_exit(0);
+	xforked_grandchild(grandchild_args);  // Only get here in BB_MMU case
+}
+
+static void xforked_grandchild(void *args_struct) {
+	struct grandchild_args *args = (struct grandchild_args *)args_struct;
+	/* grandchild */
+	close(args->redir->rd_fd); /* read side of the pipe */
+#if BB_MMU
+	full_write(args->pair_p->wr, args->heredoc, len); /* may loop or block */
+	_exit(0);
+#else
+	/* Delegate blocking writes to another process */
+	xmove_fd(args->pair_p->wr, STDOUT_FILENO);
+	re_execute_shell(args->to_free_p, args->heredoc, NULL, NULL, NULL);
+#endif
+}
+
 
 /* squirrel != NULL means we squirrel away copies of stdin, stdout,
  * and stderr if they are redirected. */
