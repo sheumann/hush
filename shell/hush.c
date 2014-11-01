@@ -5643,8 +5643,9 @@ static void re_execute_shell(char ***to_free, const char *s,
 		char **builtin_argv)
 {
 # define NOMMU_HACK_FMT ("-$%x:%x:%x:%x:%x:%" PRIxMAX IF_HUSH_LOOPS(":%x"))
+# define NOMMU_HACK_FMT_LEN 25
 	/* delims + 2 * (number of bytes in printed hex numbers) */
-	char param_buf[sizeof(NOMMU_HACK_FMT) + 2 * (sizeof(int)*6 + sizeof(uintmax_t)*1)];
+	char param_buf[NOMMU_HACK_FMT_LEN + 2 * (sizeof(int)*6 + sizeof(uintmax_t)*1)];
 	char *heredoc_argv[4];
 	struct variable *cur;
 # if ENABLE_HUSH_FUNCTIONS
@@ -5859,13 +5860,14 @@ static FILE *generate_stream_from_string(const char *s, pid_t *pid_p)
 	char **to_free = NULL;
 # endif
 
-	xpipe(channel);
-	
 	struct child_args2 args_struct = {
 		channel,
 		s,
 		&to_free,
 	};
+
+	xpipe(channel);
+	
 	pid = BB_MMU ? xfork() : xvfork_and_run(xforked_child, &args_struct);
 #if BB_MMU
 	if (pid == 0) { /* child */
@@ -7221,6 +7223,17 @@ static NOINLINE int run_pipe(struct pipe *pi)
 		struct fd_pair pipefds;
 #if !BB_MMU
 		volatile nommu_save_t nommu_save;
+#endif
+		struct child_args args_struct = {
+			&pi,
+			&next_infd,
+			&pipefds,
+			&command,
+			&nommu_save,
+			&argv_expanded,
+		};
+
+#if !BB_MMU
 		nommu_save.new_env = NULL;
 		nommu_save.old_vars = NULL;
 		nommu_save.argv = NULL;
@@ -7240,15 +7253,6 @@ static NOINLINE int run_pipe(struct pipe *pi)
 		pipefds.wr = 1;
 		if (cmd_no < pi->num_cmds)
 			xpiped_pair(pipefds);
-
-		struct child_args args_struct = {
-			&pi,
-			&next_infd,
-			&pipefds,
-			&command,
-			&nommu_save,
-			&argv_expanded,
-		};
 
 		command->pid = BB_MMU ? fork() : vfork_and_run(forked_child, &args_struct);
 #if BB_MMU
