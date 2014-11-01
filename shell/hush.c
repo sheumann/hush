@@ -3108,7 +3108,7 @@ static const struct reserved_combo* match_reserved_word(o_string *word)
 	};
 	const struct reserved_combo *r;
 
-	for (r = reserved_list; r < reserved_list + ARRAY_SIZE(reserved_list); r++) {
+	for (r = reserved_list; r < reserved_list + ARRAY_SIZE2(reserved_list, struct reserved_combo); r++) {
 		if (strcmp(word->data, r->literal) == 0)
 			return r;
 	}
@@ -3999,7 +3999,7 @@ static int parse_dollar(o_string *as_string,
 				if (last_ch == 0) /* error? */
 					return 0;
 #else
-#error Simple code to only allow ${var} is not implemented
+#error "Simple code to only allow ${var} is not implemented"
 #endif
 				if (as_string) {
 					o_addstr(as_string, dest->data + pos);
@@ -6214,14 +6214,14 @@ static const struct built_in_command *find_builtin_helper(const char *name,
 }
 static const struct built_in_command *find_builtin1(const char *name)
 {
-	return find_builtin_helper(name, bltins1, &bltins1[ARRAY_SIZE(bltins1)]);
+	return find_builtin_helper(name, bltins1, &bltins1[ARRAY_SIZE2(bltins1, struct built_in_command)]);
 }
 static const struct built_in_command *find_builtin(const char *name)
 {
 	const struct built_in_command *x = find_builtin1(name);
 	if (x)
 		return x;
-	return find_builtin_helper(name, bltins2, &bltins2[ARRAY_SIZE(bltins2)]);
+	return find_builtin_helper(name, bltins2, &bltins2[ARRAY_SIZE2(bltins2, struct built_in_command)]);
 }
 
 #if ENABLE_HUSH_FUNCTIONS
@@ -8723,7 +8723,7 @@ static int FAST_FUNC builtin_help(char **argv UNUSED_PARAM)
 	printf(
 		"Built-in commands:\n"
 		"------------------\n");
-	for (x = bltins1; x != &bltins1[ARRAY_SIZE(bltins1)]; x++) {
+	for (x = bltins1; x != &bltins1[ARRAY_SIZE2(bltins1, struct built_in_command)]; x++) {
 		if (x->b_descr)
 			printf("%-10s%s\n", x->b_cmd, x->b_descr);
 	}

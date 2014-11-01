@@ -432,7 +432,7 @@ shell_builtin_ulimit(char **argv)
 		}
 
 		if (opt_char == 'a') {
-			for (l = limits_tbl; l != &limits_tbl[ARRAY_SIZE(limits_tbl)]; l++) {
+			for (l = limits_tbl; l != &limits_tbl[ARRAY_SIZE2(limits_tbl, struct limits)]; l++) {
 				getrlimit(l->cmd, &limit);
 				printf("-%c: %-30s ", l->option, l->name);
 				printlim(opts, &limit, l);
@@ -442,7 +442,7 @@ shell_builtin_ulimit(char **argv)
 
 		if (opt_char == 1)
 			opt_char = 'f';
-		for (l = limits_tbl; l != &limits_tbl[ARRAY_SIZE(limits_tbl)]; l++) {
+		for (l = limits_tbl; l != &limits_tbl[ARRAY_SIZE2(limits_tbl, struct limits)]; l++) {
 			if (opt_char == l->option) {
 				char *val_str;
 
@@ -489,7 +489,7 @@ shell_builtin_ulimit(char **argv)
 			}
 		} /* for (every possible opt) */
 
-		if (l == &limits_tbl[ARRAY_SIZE(limits_tbl)]) {
+		if (l == &limits_tbl[ARRAY_SIZE2(limits_tbl, struct limits)]) {
 			/* bad option. getopt already complained. */
 			break;
 		}

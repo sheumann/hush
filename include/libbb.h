@@ -1651,7 +1651,10 @@ extern const char bb_default_login_shell[] ALIGN1;
 #endif
 
 
-#define ARRAY_SIZE(x) ((unsigned)(sizeof(x) / sizeof((x)[0])))
+#define ARRAY_SIZE(x) ((size_t)(sizeof(x) / sizeof((x)[0])))
+/* ORCA/C will sometimes barf on the expression in ARRAY_SIZE, depending on the element type
+ * (e.g. for arrays of structs).  When it does, use ARRAY_SIZE2 instead. */
+#define ARRAY_SIZE2(x, elttype) ((size_t)(sizeof(x) / sizeof(elttype)))
 
 
 /* We redefine ctype macros. Unicode-correct handling of char types
