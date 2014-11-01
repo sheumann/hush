@@ -440,14 +440,14 @@ enum {
 	EXP_FLAG_GLOB           = 0x2,
 	/* Protect newly added chars against globbing
 	 * by prepending \ to *, ?, [, \ */
-	EXP_FLAG_ESC_GLOB_CHARS = 0x1,
+	EXP_FLAG_ESC_GLOB_CHARS = 0x1
 };
 enum {
 	MAYBE_ASSIGNMENT      = 0,
 	DEFINITELY_ASSIGNMENT = 1,
 	NOT_ASSIGNMENT        = 2,
 	/* Not an assigment, but next word may be: "if v=xyz cmd;" */
-	WORD_IS_KEYWORD       = 3,
+	WORD_IS_KEYWORD       = 3
 };
 /* Used for initialization: o_string foo = NULL_O_STRING; */
 #define NULL_O_STRING { NULL }
@@ -520,7 +520,7 @@ typedef enum redir_type {
 	/* otherwise, rd_fd is redirected to rd_dup */
 
 	HEREDOC_SKIPTABS = 1,
-	HEREDOC_QUOTED   = 2,
+	HEREDOC_QUOTED   = 2
 } redir_type;
 
 
@@ -593,7 +593,7 @@ typedef enum pipe_style {
 	PIPE_SEQ = 1,
 	PIPE_AND = 2,
 	PIPE_OR  = 3,
-	PIPE_BG  = 4,
+	PIPE_BG  = 4
 } pipe_style;
 /* Is there anything in this pipe at all? */
 #define IS_NULL_PIPE(pi) \
@@ -652,7 +652,7 @@ struct variable {
 
 enum {
 	BC_BREAK = 1,
-	BC_CONTINUE = 2,
+	BC_CONTINUE = 2
 };
 
 #if ENABLE_HUSH_FUNCTIONS
@@ -1463,7 +1463,6 @@ enum {
 		| (1 << SIGTTOU)
 		| (1 << SIGTSTP)
 #endif
-		,
 };
 
 static void record_pending_signo(int sig)
@@ -3075,7 +3074,7 @@ enum {
 	FLAG_MATCH = (1 << RES_MATCH),
 	FLAG_ESAC  = (1 << RES_ESAC ),
 # endif
-	FLAG_START = (1 << RES_XXXX ),
+	FLAG_START = (1 << RES_XXXX )
 };
 
 static const struct reserved_combo* match_reserved_word(o_string *word)

@@ -400,6 +400,28 @@ typedef unsigned smalluint;
 # undef HAVE_NET_ETHERNET_H
 #endif
 
+#if defined(__GNO__)
+# undef HAVE_CLEARENV
+# undef HAVE_FDATASYNC
+# undef HAVE_DPRINTF
+# undef HAVE_MEMRCHR
+# undef HAVE_MKDTEMP
+# undef HAVE_PTSNAME_R
+# undef HAVE_SIGHANDLER_T
+# undef HAVE_STPCPY
+# undef HAVE_STRCASESTR
+# undef HAVE_STRCHRNUL
+# undef HAVE_STRSIGNAL
+# undef HAVE_VASPRINTF
+# undef HAVE_GETLINE
+# undef HAVE_XTABS
+# undef HAVE_UNLOCKED_STDIO
+# undef HAVE_UNLOCKED_LINE_OPS
+# undef HAVE_MNTENT_H
+# undef HAVE_NET_ETHERNET_H
+# undef HAVE_SYS_STATFS_H
+#endif
+
 /*
  * Now, define prototypes for all the functions defined in platform.c
  * These must come after all the HAVE_* macros are defined (or not)
