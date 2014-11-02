@@ -194,25 +194,34 @@ enum token {
 #define is_file_bit(a)    (((unsigned char)((a) - FILSUID)) <= 2)
 
 #if TEST_DEBUG
+static void debug_msg(const char *fmt, ...) {
+	va_list p;
+
+	va_start(p, fmt);
+	vfprintf(stderr, fmt, p);
+	va_end(p);
+}
+
 int depth;
-#define nest_msg(...) do { \
+#define nest_msg(x) do { \
 	depth++; \
 	fprintf(stderr, "%*s", depth*2, ""); \
-	fprintf(stderr, __VA_ARGS__); \
+	debug_msg x; \
 } while (0)
-#define unnest_msg(...) do { \
+#define unnest_msg(x) do { \
 	fprintf(stderr, "%*s", depth*2, ""); \
-	fprintf(stderr, __VA_ARGS__); \
+	debug_msg x; \
 	depth--; \
 } while (0)
-#define dbg_msg(...) do { \
+#define dbg_msg(x) do { \
 	fprintf(stderr, "%*s", depth*2, ""); \
-	fprintf(stderr, __VA_ARGS__); \
+	debug_msg x; \
 } while (0)
-#define unnest_msg_and_return(expr, ...) do { \
+#define unnest_msg_and_return(expr, x) do { \
 	number_t __res = (expr); \
 	fprintf(stderr, "%*s", depth*2, ""); \
-	fprintf(stderr, __VA_ARGS__, res); \
+	debug_msg x; \
+	fprintf(stderr, ":%" PRIdNUM "\n", __res); \
 	depth--; \
 	return __res; \
 } while (0)
@@ -259,10 +268,10 @@ static const char *const TOKSTR[] = {
 	"OPERAND"
 };
 #else
-#define nest_msg(...)   ((void)0)
-#define unnest_msg(...) ((void)0)
-#define dbg_msg(...)    ((void)0)
-#define unnest_msg_and_return(expr, ...) return expr
+#define nest_msg(x)   ((void)0)
+#define unnest_msg(x) ((void)0)
+#define dbg_msg(x)    ((void)0)
+#define unnest_msg_and_return(expr, x) return expr
 #endif
 
 enum {
@@ -368,8 +377,10 @@ static const char ops_texts[] ALIGN1 =
 
 #if ENABLE_FEATURE_TEST_64
 typedef int64_t number_t;
+#define PRIdNUM PRId64
 #else
-typedef int number_t;
+typedef int32_t number_t;
+#define PRIdNUM PRId32
 #endif
 
 
@@ -473,8 +484,8 @@ static int equalf(const char *f1, const char *f2)
 static enum token check_operator(const char *s)
 {
 	static const struct operator_t no_op = {
-		.op_num = -1,
-		.op_type = -1
+		/*.op_num =*/ -1,
+		/*.op_type =*/ -1
 	};
 	int n;
 
@@ -704,22 +715,22 @@ static number_t nexpr(enum token n)
 {
 	number_t res;
 
-	nest_msg(">nexpr(%s)\n", TOKSTR[n]);
+	nest_msg((">nexpr(%s)\n", TOKSTR[n]));
 	if (n == UNOT) {
 		n = check_operator(*++args);
 		if (n == EOI) {
 			/* special case: [ ! ], [ a -a ! ] are valid */
 			/* IOW, "! ARG" may miss ARG */
 			args--;
-			unnest_msg("<nexpr:1 (!EOI), args:%s(%p)\n", args[0], &args[0]);
+			unnest_msg(("<nexpr:1 (!EOI), args:%s(%p)\n", args[0], &args[0]));
 			return 1;
 		}
 		res = !nexpr(n);
-		unnest_msg("<nexpr:%lld\n", res);
+		unnest_msg(("<nexpr:%" PRIdNUM "\n", res));
 		return res;
 	}
 	res = primary(n);
-	unnest_msg("<nexpr:%lld\n", res);
+	unnest_msg(("<nexpr:%" PRIdNUM "\n", res));
 	return res;
 }
 
@@ -728,17 +739,17 @@ static number_t aexpr(enum token n)
 {
 	number_t res;
 
-	nest_msg(">aexpr(%s)\n", TOKSTR[n]);
+	nest_msg((">aexpr(%s)\n", TOKSTR[n]));
 	res = nexpr(n);
-	dbg_msg("aexpr: nexpr:%lld, next args:%s(%p)\n", res, args[1], &args[1]);
+	dbg_msg(("aexpr: nexpr:%" PRIdNUM ", next args:%s(%p)\n", res, args[1], &args[1]));
 	if (check_operator(*++args) == BAND) {
-		dbg_msg("aexpr: arg is AND, next args:%s(%p)\n", args[1], &args[1]);
+		dbg_msg(("aexpr: arg is AND, next args:%s(%p)\n", args[1], &args[1]));
 		res = aexpr(check_operator(*++args)) && res;
-		unnest_msg("<aexpr:%lld\n", res);
+		unnest_msg(("<aexpr:%" PRIdNUM "\n", res));
 		return res;
 	}
 	args--;
-	unnest_msg("<aexpr:%lld, args:%s(%p)\n", res, args[0], &args[0]);
+	unnest_msg(("<aexpr:%" PRIdNUM ", args:%s(%p)\n", res, args[0], &args[0]));
 	return res;
 }
 
@@ -747,17 +758,17 @@ static number_t oexpr(enum token n)
 {
 	number_t res;
 
-	nest_msg(">oexpr(%s)\n", TOKSTR[n]);
+	nest_msg((">oexpr(%s)\n", TOKSTR[n]));
 	res = aexpr(n);
-	dbg_msg("oexpr: aexpr:%lld, next args:%s(%p)\n", res, args[1], &args[1]);
+	dbg_msg(("oexpr: aexpr:%" PRIdNUM ", next args:%s(%p)\n", res, args[1], &args[1]));
 	if (check_operator(*++args) == BOR) {
-		dbg_msg("oexpr: next arg is OR, next args:%s(%p)\n", args[1], &args[1]);
+		dbg_msg(("oexpr: next arg is OR, next args:%s(%p)\n", args[1], &args[1]));
 		res = oexpr(check_operator(*++args)) || res;
-		unnest_msg("<oexpr:%lld\n", res);
+		unnest_msg(("<oexpr:%" PRIdNUM "\n", res));
 		return res;
 	}
 	args--;
-	unnest_msg("<oexpr:%lld, args:%s(%p)\n", res, args[0], &args[0]);
+	unnest_msg(("<oexpr:%" PRIdNUM ", args:%s(%p)\n", res, args[0], &args[0]));
 	return res;
 }
 
@@ -771,7 +782,7 @@ static number_t primary(enum token n)
 #endif
 	const struct operator_t *args0_op;
 
-	nest_msg(">primary(%s)\n", TOKSTR[n]);
+	nest_msg((">primary(%s)\n", TOKSTR[n]));
 	if (n == EOI) {
 		syntax(NULL, "argument expected");
 	}
@@ -779,7 +790,7 @@ static number_t primary(enum token n)
 		res = oexpr(check_operator(*++args));
 		if (check_operator(*++args) != RPAREN)
 			syntax(NULL, "closing paren expected");
-		unnest_msg("<primary:%lld\n", res);
+		unnest_msg(("<primary:%" PRIdNUM "\n", res));
 		return res;
 	}
 
@@ -793,7 +804,7 @@ static number_t primary(enum token n)
 			// if (args[3] && args[0]="-l" && args[2] is BINOP)
 			//	return binop(1 /* prepended by -l */);
 			if (last_operator->op_type == BINOP)
-				unnest_msg_and_return(binop(), "<primary: binop:%lld\n");
+				unnest_msg_and_return(binop(), ("<primary: binop"));
 		}
 	}
 	/* check "is args[0] unop?" second */
@@ -804,21 +815,21 @@ static number_t primary(enum token n)
 			goto check_emptiness;
 		args++;
 		if (n == STREZ)
-			unnest_msg_and_return(args[0][0] == '\0', "<primary:%lld\n");
+			unnest_msg_and_return(args[0][0] == '\0', ("<primary"));
 		if (n == STRNZ)
-			unnest_msg_and_return(args[0][0] != '\0', "<primary:%lld\n");
+			unnest_msg_and_return(args[0][0] != '\0', ("<primary"));
 		if (n == FILTT)
-			unnest_msg_and_return(isatty(getn(*args)), "<primary: isatty(%s)%lld\n", *args);
-		unnest_msg_and_return(filstat(*args, n), "<primary: filstat(%s):%lld\n", *args);
+			unnest_msg_and_return(isatty(getn(*args)), ("<primary: isatty(%s)", *args));
+		unnest_msg_and_return(filstat(*args, n), ("<primary: filstat(%s)", *args));
 	}
 
 	/*check_operator(args[1]); - already done */
 	if (last_operator->op_type == BINOP) {
 		/* args[2] is known to be NULL, isn't it bound to fail? */
-		unnest_msg_and_return(binop(), "<primary:%lld\n");
+		unnest_msg_and_return(binop(), ("<primary"));
 	}
  check_emptiness:
-	unnest_msg_and_return(args[0][0] != '\0', "<primary:%lld\n");
+	unnest_msg_and_return(args[0][0] != '\0', ("<primary"));
 }
 
 
