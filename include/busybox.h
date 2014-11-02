@@ -5,6 +5,8 @@
 #ifndef BUSYBOX_H
 #define BUSYBOX_H 1
 
+#define BB_VER "1.22.1"
+
 #include "libbb.h"
 /* BB_DIR_foo and BB_SUID_bar constants: */
 #include "applet_metadata.h"
