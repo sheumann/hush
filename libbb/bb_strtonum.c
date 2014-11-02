@@ -30,13 +30,13 @@
  * printf("endptr[0]:%c errno:%d EINVAL:%d\n", endptr[0], errno, EINVAL);
  */
 
-static unsigned long long ret_ERANGE(void)
+static uintmax_t ret_ERANGE(void)
 {
 	errno = ERANGE; /* this ain't as small as it looks (on glibc) */
-	return ULLONG_MAX;
+	return UINTMAX_MAX;
 }
 
-static unsigned long long handle_errors(unsigned long long v, char **endp)
+static uintmax_t handle_errors(uintmax_t v, char **endp)
 {
 	char next_ch = **endp;
 

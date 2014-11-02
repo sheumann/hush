@@ -67,9 +67,9 @@ unsigned type FAST_FUNC xstrtou(_range_sfx)(const char *numstr, int base,
 	if (r >= lower && r <= upper)
 		return r;
  range:
-	bb_error_msg_and_die("number %s is not in %llu..%llu range",
-		numstr, (unsigned long long)lower,
-		(unsigned long long)upper);
+	bb_error_msg_and_die("number %s is not in %" PRIuMAX "..%" PRIuMAX " range",
+		numstr, (uintmax_t)lower,
+		(uintmax_t)upper);
  inval:
 	bb_error_msg_and_die("invalid number '%s'", numstr);
 }

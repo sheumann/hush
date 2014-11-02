@@ -951,7 +951,9 @@ static const struct built_in_command bltins1[] = {
 	BLTIN("trap"     , builtin_trap    , "Trap signals"),
 	BLTIN("true"     , builtin_true    , NULL),
 	BLTIN("type"     , builtin_type    , "Show command type"),
+#ifndef __GNO__
 	BLTIN("ulimit"   , shell_builtin_ulimit  , "Control resource limits"),
+#endif
 	BLTIN("umask"    , builtin_umask   , "Set file creation mask"),
 	BLTIN("unset"    , builtin_unset   , "Unset variables"),
 	BLTIN("wait"     , builtin_wait    , "Wait for process"),
@@ -5977,7 +5979,8 @@ static int process_command_subs(o_string *dest, const char *s)
 	FILE *fp;
 	struct in_str pipe_str;
 	pid_t pid;
-	int status, ch, eol_cnt;
+	wait_status_t status;
+	int ch, eol_cnt;
 
 	fp = generate_stream_from_string(s, &pid);
 
@@ -6043,6 +6046,7 @@ static void setup_heredoc(struct redir_struct *redir)
 
 	/* Try writing without forking. Newer kernels have
 	 * dynamically growing pipes. Must use non-blocking write! */
+#ifndef __GNO__
 	ndelay_on(pair.wr);
 	while (1) {
 		written = write(pair.wr, heredoc, len);
@@ -6057,6 +6061,7 @@ static void setup_heredoc(struct redir_struct *redir)
 		heredoc += written;
 	}
 	ndelay_off(pair.wr);
+#endif
 
 	/* Okay, pipe buffer was not big enough */
 	/* Note: we must not create a stray child (bastard? :)
@@ -6756,11 +6761,7 @@ static void delete_finished_bg_job(struct pipe *pi)
 static int checkjobs(struct pipe *fg_pipe)
 {
 	int attributes;
-#ifndef __GNO__
-	int status;
-#else
-	union wait status;
-#endif
+	wait_status_t status;
 #if ENABLE_HUSH_JOB
 	struct pipe *pi;
 #endif
@@ -9126,11 +9127,7 @@ static int FAST_FUNC builtin_unset(char **argv)
 static int FAST_FUNC builtin_wait(char **argv)
 {
 	int ret = EXIT_SUCCESS;
-#ifndef __GNO__
-	int status;
-#else
-	union wait status;
-#endif
+	wait_status_t status;
 
 	argv = skip_dash_dash(argv);
 	if (argv[0] == NULL) {

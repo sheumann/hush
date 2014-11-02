@@ -895,8 +895,7 @@ pid_t xfork(void) FAST_FUNC;
 pid_t spawn(char **argv) FAST_FUNC;
 pid_t xspawn(char **argv) FAST_FUNC;
 
-pid_t safe_waitpid(pid_t pid, int *wstat, int options) FAST_FUNC;
-pid_t wait_any_nohang(int *wstat) FAST_FUNC;
+pid_t safe_waitpid(pid_t pid, wait_status_t *wstat, int options) FAST_FUNC;
 /* wait4pid: unlike waitpid, waits ONLY for one process.
  * Returns sig + 0x180 if child is killed by signal.
  * It's safe to pass negative 'pids' from failed [v]fork -
@@ -1665,6 +1664,8 @@ extern const char bb_default_login_shell[] ALIGN1;
  * can't be done with such byte-oriented operations anyway,
  * we don't lose anything.
  */
+#ifndef __ORCAC__
+// ORCA/C barfs on (at least) isspace, so we'll just use the standard versions of these.
 #undef isalnum
 #undef isalpha
 #undef isascii
@@ -1742,6 +1743,7 @@ static ALWAYS_INLINE unsigned char bb_ascii_tolower(unsigned char a)
 /* NB: must not treat EOF as isgraph or isprint */
 #define isgraph_asciionly(a) ((unsigned)((a) - 0x21) <= 0x7e - 0x21)
 #define isprint_asciionly(a) ((unsigned)((a) - 0x20) <= 0x7e - 0x20)
+#endif /* !defined(__ORCAC__) */
 
 
 /* Simple unit-testing framework */

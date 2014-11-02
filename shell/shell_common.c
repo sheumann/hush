@@ -188,6 +188,10 @@ shell_builtin_read(void FAST_FUNC (*setvar)(const char *name, const char *val),
 		 * regardless of SA_RESTART-ness of that signal!
 		 */
 		errno = 0;
+#ifndef __GNO__
+// GNO doesn't have poll, so disable this for now.  This disables the -t 
+// (timeout) flag and may interfere with signal handling, as mentioned above.
+// TODO Do something more intelligent here.
 		pfd[0].fd = fd;
 		pfd[0].events = POLLIN;
 		if (poll(pfd, 1, timeout * 1000) != 1) {
@@ -196,6 +200,7 @@ shell_builtin_read(void FAST_FUNC (*setvar)(const char *name, const char *val),
 			retval = (const char *)(uintptr_t)1;
 			goto ret;
 		}
+#endif
 		if (read(fd, &buffer[bufpos], 1) != 1) {
 			err = errno;
 			retval = (const char *)(uintptr_t)1;
@@ -326,7 +331,7 @@ static const struct limits limits_tbl[] = {
 
 enum {
 	OPT_hard = (1 << 0),
-	OPT_soft = (1 << 1),
+	OPT_soft = (1 << 1)
 };
 
 /* "-": treat args as parameters of option with ASCII code 1 */
@@ -371,6 +376,9 @@ static const char ulimit_opt_string[] = "-HSa"
 			"r::"
 #endif
 			;
+
+#ifndef __GNO__
+// No ulimit support in GNO -- disable this for now.
 
 static void printlim(unsigned opts, const struct rlimit *limit,
 			const struct limits *l)
@@ -498,3 +506,4 @@ shell_builtin_ulimit(char **argv)
 
 	return 0;
 }
+#endif /* !defined(__GNO__) */

@@ -24,6 +24,7 @@
 
 #include "libbb.h"
 
+#ifndef __GNO__
 /* Turn on nonblocking I/O on a fd */
 int FAST_FUNC ndelay_on(int fd)
 {
@@ -42,6 +43,7 @@ int FAST_FUNC ndelay_off(int fd)
 	fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
 	return flags;
 }
+#endif
 
 void FAST_FUNC close_on_exec_on(int fd)
 {
@@ -75,7 +77,7 @@ char* FAST_FUNC utoa_to_buf(unsigned n, char *buf, unsigned buflen)
 		else
 		if (sizeof(n) == 8)
 		// 2^64-1 = 18446744073709551615
-			i = 10000000000000000000;
+			i = 10 ** 19;
 #endif
 		else
 			BUG_sizeof();
@@ -277,7 +279,7 @@ int FAST_FUNC tcsetattr_stdin_TCSANOW(const struct termios *tp)
 	return tcsetattr(STDIN_FILENO, TCSANOW, tp);
 }
 
-pid_t FAST_FUNC safe_waitpid(pid_t pid, int *wstat, int options)
+pid_t FAST_FUNC safe_waitpid(pid_t pid, wait_status_t *wstat, int options)
 {
 	pid_t r;
 
@@ -287,26 +289,3 @@ pid_t FAST_FUNC safe_waitpid(pid_t pid, int *wstat, int options)
 	return r;
 }
 
-pid_t FAST_FUNC wait_any_nohang(int *wstat)
-{
-	return safe_waitpid(-1, wstat, WNOHANG);
-}
-
-// Wait for the specified child PID to exit, returning child's error return.
-int FAST_FUNC wait4pid(pid_t pid)
-{
-	int status;
-
-	if (pid <= 0) {
-		/*errno = ECHILD; -- wrong. */
-		/* we expect errno to be already set from failed [v]fork/exec */
-		return -1;
-	}
-	if (safe_waitpid(pid, &status, 0) == -1)
-		return -1;
-	if (WIFEXITED(status))
-		return WEXITSTATUS(status);
-	if (WIFSIGNALED(status))
-		return WTERMSIG(status) + 0x180;
-	return 0;
-}

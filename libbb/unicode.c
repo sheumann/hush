@@ -149,7 +149,7 @@ size_t FAST_FUNC wcstombs(char *dest, const wchar_t *src, size_t n)
 		wchar_t wc = *src++;
 		size_t len = wcrtomb_internal(dest, wc);
 
-		if (wc == L'\0')
+		if (wc == (wchar_t)0)
 			return org_n - n;
 		dest += len;
 		n -= len;
@@ -162,7 +162,7 @@ size_t FAST_FUNC wcstombs(char *dest, const wchar_t *src, size_t n)
 		if (len > n)
 			break;
 		memcpy(dest, tbuf, len);
-		if (wc == L'\0')
+		if (wc == (wchar_t)0)
 			return org_n - n;
 		dest += len;
 		n -= len;

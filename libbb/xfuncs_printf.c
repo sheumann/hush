@@ -439,30 +439,10 @@ IF_FEATURE_IPV6(if (domain == AF_INET6) s = "INET6";)
 	return r;
 }
 
-// Die with an error message if we can't bind a socket to an address.
-void FAST_FUNC xbind(int sockfd, struct sockaddr *my_addr, socklen_t addrlen)
-{
-	if (bind(sockfd, my_addr, addrlen)) bb_perror_msg_and_die("bind");
-}
-
 // Die with an error message if we can't listen for connections on a socket.
 void FAST_FUNC xlisten(int s, int backlog)
 {
 	if (listen(s, backlog)) bb_perror_msg_and_die("listen");
-}
-
-/* Die with an error message if sendto failed.
- * Return bytes sent otherwise  */
-ssize_t FAST_FUNC xsendto(int s, const void *buf, size_t len, const struct sockaddr *to,
-				socklen_t tolen)
-{
-	ssize_t ret = sendto(s, buf, len, 0, to, tolen);
-	if (ret < 0) {
-		if (ENABLE_FEATURE_CLEAN_UP)
-			close(s);
-		bb_perror_msg_and_die("sendto");
-	}
-	return ret;
 }
 
 // xstat() - a stat() which dies on failure with meaningful error message
@@ -565,15 +545,6 @@ int FAST_FUNC bb_xioctl(int fd, unsigned request, void *argp)
 	return ret;
 }
 #endif
-
-char* FAST_FUNC xmalloc_ttyname(int fd)
-{
-	char buf[128];
-	int r = ttyname_r(fd, buf, sizeof(buf) - 1);
-	if (r)
-		return NULL;
-	return xstrdup(buf);
-}
 
 #if BB_MMU
 pid_t FAST_FUNC xfork(void)

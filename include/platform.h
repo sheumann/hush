@@ -144,6 +144,7 @@
 #ifndef __ORCAC__
 # include <inttypes.h>
 #else
+# include <limits.h>
 typedef signed char int8_t;
 typedef unsigned char uint8_t;
 typedef short int16_t;
@@ -154,13 +155,15 @@ typedef long intmax_t;
 typedef unsigned long uintmax_t;
 # define PRIxMAX "lx"
 # define PRIdMAX "ld"
+# define PRIuMAX "lu"
+# define UINTMAX_MAX ULONG_MAX
 typedef unsigned long uintptr_t;
 #endif
 
 
 /* ---- Size-saving "small" ints (arch-dependent) ----------- */
 
-#if defined(i386) || defined(__x86_64__) || defined(__mips__) || defined(__cris__)
+#if defined(i386) || defined(__x86_64__) || defined(__mips__) || defined(__cris__) || defined(__ORCAC__)
 /* add other arches which benefit from this... */
 typedef signed char smallint;
 typedef unsigned char smalluint;
@@ -484,10 +487,22 @@ extern ssize_t getline(char **lineptr, size_t *n, FILE *stream) FAST_FUNC;
 #endif
 
 
+#ifdef __GNO__
+// GNO mkdir doesn't take a mode parameter
+# define mkdir(path, mode) mkdir(path)
+#endif
+
 #if NSIG <= 32
 typedef unsigned long sigmask_t;
 #else
 typedef unsigned long long sigmask_t;
+#endif
+
+#ifdef __GNO__
+# include <sys/wait.h>
+typedef union wait wait_status_t;
+#else
+typedef int wait_status_t;
 #endif
 
 #endif
