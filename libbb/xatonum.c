@@ -18,7 +18,7 @@
 #define XSTR_TYPE_MAX LONG_MAX
 #define XSTR_TYPE_MIN LONG_MIN
 #define XSTR_STRTOU strtoul
-#include "xatonum_template.c"
+#include "xatonum.tmplt.c"
 
 #if UINT_MAX != ULONG_MAX
 static ALWAYS_INLINE
@@ -41,7 +41,7 @@ unsigned bb_strtoui(const char *str, char **end, int b)
 #define XSTR_TYPE_MIN INT_MIN
 /* libc has no strtoui, so we need to create/use our own */
 #define XSTR_STRTOU bb_strtoui
-#include "xatonum_template.c"
+#include "xatonum.tmplt.c"
 #endif
 
 /* A few special cases */

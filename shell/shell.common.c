@@ -17,7 +17,7 @@
  * Licensed under GPLv2 or later, see file LICENSE in this source tree.
  */
 #include "libbb.h"
-#include "shell_common.h"
+#include "shell.common.h"
 #include <sys/resource.h> /* getrlimit */
 
 const char defifsvar[] ALIGN1 = "IFS= \t\n";

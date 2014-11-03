@@ -97,7 +97,7 @@
 
 #include "busybox.h"  /* for APPLET_IS_NOFORK/NOEXEC */
 #include "unicode.h"
-#include "shell_common.h"
+#include "shell.common.h"
 #include "math.h"
 #include "match.h"
 #if ENABLE_HUSH_RANDOM_SUPPORT
@@ -306,7 +306,7 @@
 # define USE_FOR_MMU(x)
 #endif
 
-#include "NUM_APPLETS.h"
+#include "NUM.APPLETS.h"
 #if NUM_APPLETS == 1
 /* STANDALONE does not make sense, and won't compile */
 # undef CONFIG_FEATURE_SH_STANDALONE

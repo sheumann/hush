@@ -3,55 +3,55 @@ SRCS = \
 	shell/match.c \
 	shell/math.c \
 	shell/random.c \
-	shell/shell_common.c \
+	shell/shell.common.c \
 	shell/glob.c \
 	coreutils/echo.c \
 	coreutils/test.c \
-	coreutils/test_ptr_hack.c \
-	libbb/xfuncs_printf.c \
+	coreutils/test.ptr.hack.c \
+	libbb/xfuncs.printf.c \
 	libbb/xfuncs.c \
 	libbb/xgetcwd.c \
 	libbb/getopt32.c \
-	libbb/perror_msg.c \
+	libbb/perror.msg.c \
 	libbb/xatonum.c \
-	libbb/u_signal_names.c \
-	libbb/ptr_to_globals.c \
-	libbb/default_error_retval.c \
-	libbb/xfunc_die.c \
-	libbb/safe_strncpy.c \
+	libbb/signal.names.c \
+	libbb/ptrtoglobals.c \
+	libbb/error.retval.c \
+	libbb/xfunc.die.c \
+	libbb/safe.strncpy.c \
 	libbb/lineedit.c \
-	libbb/lineedit_ptr_hack.c \
+	libbb/lineedptrhack.c \
 	libbb/platform.c \
 	libbb/endofname.c \
 	libbb/signals.c \
-	libbb/skip_whitespace.c \
+	libbb/skip.whitespc.c \
 	libbb/wfopen.c \
-	libbb/verror_msg.c \
-	libbb/bb_strtonum.c \
+	libbb/verror.msg.c \
+	libbb/bb.strtonum.c \
 	libbb/time.c \
-	libbb/printable_string.c \
-	libbb/full_write.c \
-	libbb/bb_qsort.c \
-	libbb/xrealloc_vector.c \
+	libbb/printable.str.c \
+	libbb/full.write.c \
+	libbb/bb.qsort.c \
+	libbb/xrealloc.vec.c \
 	libbb/copyfd.c \
-	libbb/read_key.c \
+	libbb/read.key.c \
 	libbb/unicode.c \
-	libbb/safe_write.c \
+	libbb/safe.write.c \
 	libbb/read.c \
-	libbb/safe_gethostname.c \
-	libbb/get_line_from_file.c \
-	libbb/concat_path_file.c \
-	libbb/last_char_is.c \
-	libbb/safe_poll.c \
-	libbb/process_escape_sequence.c \
-	libbb/compare_string_array.c \
+	libbb/s.gethostname.c \
+	libbb/get.line.c \
+	libbb/conc.pathfile.c \
+	libbb/last.char.is.c \
+	libbb/safe.poll.c \
+	libbb/escape.seq.c \
+	libbb/cmp.str.array.c \
 	libbb/llist.c \
-	libbb/parse_mode.c \
+	libbb/parse.mode.c \
 	libbb/messages.c \
 	libbb/appletlib.c \
-	libbb/get_last_path_component.c \
+	libbb/bb.basename.c \
 	libbb/mempcpy.c \
-	libbb/vfork_and_run.c
+	libbb/vfork.and.run.c
 OBJS = $(SRCS:.c=.o)
 ROOTS = $(SRCS:.c=.root)
 

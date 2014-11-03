@@ -9,7 +9,7 @@
 
 #include "libbb.h"
 /* BB_DIR_foo and BB_SUID_bar constants: */
-#include "applet_metadata.h"
+#include "appltmetadata.h"
 
 PUSH_AND_SET_FUNCTION_VISIBILITY_TO_HIDDEN
 
