@@ -19,7 +19,11 @@
 /* Believe it or not, but some arches have more than 32 SIGs!
  * HPPA: SIGSTKFLT == 36. */
 
-static const char signals[][7] = {
+static char *signals[NSIG];
+
+static bool signals_initialized = 0;
+
+static void initialize_signals(void) {
 	// SUSv3 says kill must support these, and specifies the numerical values,
 	// http://www.opengroup.org/onlinepubs/009695399/utilities/kill.html
 	// {0, "EXIT"}, {1, "HUP"}, {2, "INT"}, {3, "QUIT"},
@@ -30,111 +34,122 @@ static const char signals[][7] = {
 	// {SIGCONT, "CONT"}, {SIGSTOP, "STOP"}, {SIGTSTP, "TSTP"}, {SIGTTIN, "TTIN"},
 	// {SIGTTOU, "TTOU"}
 
-	[0] = "EXIT",
+	int i;
+	
+	if (signals_initialized)
+		return;
+
+	for (i = 0; i < NSIG; i++) {
+		signals[i] = "";
+	}
+
+	signals[0] = "EXIT";
 #ifdef SIGHUP
-	[SIGHUP   ] = "HUP",
+	signals[SIGHUP   ] = "HUP";
 #endif
 #ifdef SIGINT
-	[SIGINT   ] = "INT",
+	signals[SIGINT   ] = "INT";
 #endif
 #ifdef SIGQUIT
-	[SIGQUIT  ] = "QUIT",
+	signals[SIGQUIT  ] = "QUIT";
 #endif
 #ifdef SIGILL
-	[SIGILL   ] = "ILL",
+	signals[SIGILL   ] = "ILL";
 #endif
 #ifdef SIGTRAP
-	[SIGTRAP  ] = "TRAP",
+	signals[SIGTRAP  ] = "TRAP";
 #endif
 #ifdef SIGABRT
-	[SIGABRT  ] = "ABRT",
+	signals[SIGABRT  ] = "ABRT";
 #endif
 #ifdef SIGBUS
-	[SIGBUS   ] = "BUS",
+	signals[SIGBUS   ] = "BUS";
 #endif
 #ifdef SIGFPE
-	[SIGFPE   ] = "FPE",
+	signals[SIGFPE   ] = "FPE";
 #endif
 #ifdef SIGKILL
-	[SIGKILL  ] = "KILL",
+	signals[SIGKILL  ] = "KILL";
 #endif
 #ifdef SIGUSR1
-	[SIGUSR1  ] = "USR1",
+	signals[SIGUSR1  ] = "USR1";
 #endif
 #ifdef SIGSEGV
-	[SIGSEGV  ] = "SEGV",
+	signals[SIGSEGV  ] = "SEGV";
 #endif
 #ifdef SIGUSR2
-	[SIGUSR2  ] = "USR2",
+	signals[SIGUSR2  ] = "USR2";
 #endif
 #ifdef SIGPIPE
-	[SIGPIPE  ] = "PIPE",
+	signals[SIGPIPE  ] = "PIPE";
 #endif
 #ifdef SIGALRM
-	[SIGALRM  ] = "ALRM",
+	signals[SIGALRM  ] = "ALRM";
 #endif
 #ifdef SIGTERM
-	[SIGTERM  ] = "TERM",
+	signals[SIGTERM  ] = "TERM";
 #endif
 #ifdef SIGSTKFLT
-	[SIGSTKFLT] = "STKFLT",
+	signals[SIGSTKFLT] = "STKFLT";
 #endif
 #ifdef SIGCHLD
-	[SIGCHLD  ] = "CHLD",
+	signals[SIGCHLD  ] = "CHLD";
 #endif
 #ifdef SIGCONT
-	[SIGCONT  ] = "CONT",
+	signals[SIGCONT  ] = "CONT";
 #endif
 #ifdef SIGSTOP
-	[SIGSTOP  ] = "STOP",
+	signals[SIGSTOP  ] = "STOP";
 #endif
 #ifdef SIGTSTP
-	[SIGTSTP  ] = "TSTP",
+	signals[SIGTSTP  ] = "TSTP";
 #endif
 #ifdef SIGTTIN
-	[SIGTTIN  ] = "TTIN",
+	signals[SIGTTIN  ] = "TTIN";
 #endif
 #ifdef SIGTTOU
-	[SIGTTOU  ] = "TTOU",
+	signals[SIGTTOU  ] = "TTOU";
 #endif
 #ifdef SIGURG
-	[SIGURG   ] = "URG",
+	signals[SIGURG   ] = "URG";
 #endif
 #ifdef SIGXCPU
-	[SIGXCPU  ] = "XCPU",
+	signals[SIGXCPU  ] = "XCPU";
 #endif
 #ifdef SIGXFSZ
-	[SIGXFSZ  ] = "XFSZ",
+	signals[SIGXFSZ  ] = "XFSZ";
 #endif
 #ifdef SIGVTALRM
-	[SIGVTALRM] = "VTALRM",
+	signals[SIGVTALRM] = "VTALRM";
 #endif
 #ifdef SIGPROF
-	[SIGPROF  ] = "PROF",
+	signals[SIGPROF  ] = "PROF";
 #endif
 #ifdef SIGWINCH
-	[SIGWINCH ] = "WINCH",
+	signals[SIGWINCH ] = "WINCH";
 #endif
 #ifdef SIGPOLL
-	[SIGPOLL  ] = "POLL",
+	signals[SIGPOLL  ] = "POLL";
 #endif
 #ifdef SIGPWR
-	[SIGPWR   ] = "PWR",
+	signals[SIGPWR   ] = "PWR";
 #endif
 #ifdef SIGSYS
-	[SIGSYS   ] = "SYS",
+	signals[SIGSYS   ] = "SYS";
 #endif
 #if ENABLE_FEATURE_RTMINMAX
 # ifdef __SIGRTMIN
-	[__SIGRTMIN] = "RTMIN",
+	signals[__SIGRTMIN] = "RTMIN";
 # endif
 // This makes array about x2 bigger.
 // More compact approach is to special-case SIGRTMAX in print_signames()
 //# ifdef __SIGRTMAX
-//	[__SIGRTMAX] = "RTMAX",
+//	signals[__SIGRTMAX] = "RTMAX";
 //# endif
 #endif
-};
+
+	signals_initialized = 1;
+}
 
 // Convert signal name to number.
 
@@ -142,6 +157,7 @@ int FAST_FUNC get_signum(const char *name)
 {
 	unsigned i;
 
+	initialize_signals();
 	i = bb_strtou(name, NULL, 10);
 	if (!errno)
 		return i;
@@ -208,6 +224,7 @@ int FAST_FUNC get_signum(const char *name)
 
 const char* FAST_FUNC get_signame(int number)
 {
+	initialize_signals();
 	if ((unsigned)number < ARRAY_SIZE(signals)) {
 		if (signals[number][0]) /* if it's not an empty str */
 			return signals[number];
@@ -223,6 +240,7 @@ void FAST_FUNC print_signames(void)
 {
 	unsigned signo;
 
+	initialize_signals();
 	for (signo = 1; signo < ARRAY_SIZE(signals); signo++) {
 		const char *name = signals[signo];
 		if (name[0])
