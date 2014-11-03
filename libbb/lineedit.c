@@ -67,10 +67,10 @@
 
 #define ENABLE_USERNAME_OR_HOMEDIR \
 	(ENABLE_FEATURE_USERNAME_COMPLETION || ENABLE_FEATURE_EDITING_FANCY_PROMPT)
-#define IF_USERNAME_OR_HOMEDIR(...)
+#define IF_USERNAME_OR_HOMEDIR(x)
 #if ENABLE_USERNAME_OR_HOMEDIR
 # undef IF_USERNAME_OR_HOMEDIR
-# define IF_USERNAME_OR_HOMEDIR(...) __VA_ARGS__
+# define IF_USERNAME_OR_HOMEDIR(x) x
 #endif
 
 
@@ -697,7 +697,7 @@ static NOINLINE unsigned complete_username(const char *ud)
 enum {
 	FIND_EXE_ONLY = 0,
 	FIND_DIR_ONLY = 1,
-	FIND_FILE_ONLY = 2,
+	FIND_FILE_ONLY = 2
 };
 
 static int path_parse(char ***p)
@@ -1795,7 +1795,7 @@ static void parse_and_put_prompt(const char *prmt_ptr)
 	cbuf[1] = '\0'; /* never changes */
 
 	while (*prmt_ptr) {
-		char timebuf[sizeof("HH:MM:SS")];
+		char timebuf[9 /*sizeof("HH:MM:SS")*/];
 		char *free_me = NULL;
 		char *pbuf;
 		char c;
@@ -1990,7 +1990,7 @@ static void win_changed(int nsig)
 
 static int lineedit_read_key(char *read_key_buffer, int timeout)
 {
-	int64_t ic;
+	int32_t ic;
 #if ENABLE_UNICODE_SUPPORT
 	char unicode_buf[MB_CUR_MAX + 1];
 	int unicode_idx = 0;
@@ -2097,10 +2097,8 @@ static int isrtl_str(void)
 #undef CTRL
 #define CTRL(a) ((a) & ~0x40)
 
-enum {
-	VI_CMDMODE_BIT = 0x40000000,
+#define VI_CMDMODE_BIT 0x40000000
 	/* 0x80000000 bit flags KEYCODE_xxx */
-};
 
 #if ENABLE_FEATURE_REVERSE_SEARCH
 /* Mimic readline Ctrl-R reverse history search.
