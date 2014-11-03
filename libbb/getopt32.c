@@ -10,7 +10,11 @@
 #include "autoconf.h"
 
 #if ENABLE_LONG_OPTS || ENABLE_FEATURE_GETOPT_LONG
-# include <getopt.h>
+# ifndef __GNO__
+#  include <getopt.h>
+# else
+#  include <stdlib.h>
+# endif
 #endif
 #include "libbb.h"
 
@@ -303,7 +307,7 @@ const char *opt_complementary;
 enum {
 	PARAM_STRING,
 	PARAM_LIST,
-	PARAM_INT,
+	PARAM_INT
 };
 
 typedef struct {
