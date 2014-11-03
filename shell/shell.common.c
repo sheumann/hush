@@ -188,19 +188,14 @@ shell_builtin_read(void FAST_FUNC (*setvar)(const char *name, const char *val),
 		 * regardless of SA_RESTART-ness of that signal!
 		 */
 		errno = 0;
-#ifndef __GNO__
-// GNO doesn't have poll, so disable this for now.  This disables the -t 
-// (timeout) flag and may interfere with signal handling, as mentioned above.
-// TODO Do something more intelligent here.
 		pfd[0].fd = fd;
 		pfd[0].events = POLLIN;
-		if (poll(pfd, 1, timeout * 1000) != 1) {
+		if (poll(pfd, 1, timeout == -1 ? -1 : timeout * 1000) != 1) {
 			/* timed out, or EINTR */
 			err = errno;
 			retval = (const char *)(uintptr_t)1;
 			goto ret;
 		}
-#endif
 		if (read(fd, &buffer[bufpos], 1) != 1) {
 			err = errno;
 			retval = (const char *)(uintptr_t)1;

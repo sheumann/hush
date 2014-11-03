@@ -34,11 +34,7 @@
 /* See the dirname/basename man page for details */
 #undef basename
 #define basename dont_use_basename
-#ifndef __GNO__
-# include <poll.h>
-#else
-//TODO Deal with lack of poll in GNO
-#endif
+#include "poll.h"
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -755,11 +751,7 @@ void qsort_string_vector(char **sv, unsigned count) FAST_FUNC;
  * On other errors complains [perror("poll")] and returns.
  * Warning! May take (much) longer than timeout_ms to return!
  * If this is a problem, use bare poll and open-code EINTR/ENOMEM handling */
-#ifndef __GNO__
 int safe_poll(struct pollfd *ufds, nfds_t nfds, int timeout_ms) FAST_FUNC;
-#else
-//TODO Deal with lack of poll in GNO
-#endif
 
 char *safe_gethostname(void) FAST_FUNC;
 

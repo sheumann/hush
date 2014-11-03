@@ -51,7 +51,8 @@ SRCS = \
 	libbb/appletlib.c \
 	libbb/bb.basename.c \
 	libbb/mempcpy.c \
-	libbb/vfork.and.run.c
+	libbb/vfork.and.run.c \
+	libbb/poll.c
 OBJS = $(SRCS:.c=.o)
 ROOTS = $(SRCS:.c=.root)
 
