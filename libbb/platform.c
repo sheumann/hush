@@ -36,27 +36,42 @@ int FAST_FUNC usleep(unsigned usec)
 #endif
 
 #ifndef HAVE_VASPRINTF
+#ifndef __ORCAC__
+# define VASPRINTF_BUF_SIZE 128
+#else
+# define VASPRINTF_BUF_SIZE 8
+#endif
+
 int FAST_FUNC vasprintf(char **string_ptr, const char *format, va_list p)
 {
 	int r;
 	va_list p2;
-	char buf[128];
+	char buf[VASPRINTF_BUF_SIZE];
 
+#ifndef __ORCAC__
 	va_copy(p2, p);
-	r = vsnprintf(buf, 128, format, p);
-	va_end(p);
+#else
+	// ORCA/C doesn't have va_copy, so copy it manually instead.
+	// Don't call va_end on the copy, because that would mess up the stack.
+	memcpy(p2, p, sizeof(va_list));
+#endif
+	r = vsnprintf(buf, VASPRINTF_BUF_SIZE, format, p);
 
 	/* Note: can't use xstrdup/xmalloc, they call vasprintf (us) on failure! */
 
-	if (r < 128) {
+	if (r < VASPRINTF_BUF_SIZE) {
+#ifndef __ORCAC__
 		va_end(p2);
+#endif
 		*string_ptr = strdup(buf);
 		return (*string_ptr ? r : -1);
 	}
 
 	*string_ptr = malloc(r+1);
 	r = (*string_ptr ? vsnprintf(*string_ptr, r+1, format, p2) : -1);
+#ifndef __ORCAC__
 	va_end(p2);
+#endif
 
 	return r;
 }
