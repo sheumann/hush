@@ -9264,7 +9264,12 @@ static int FAST_FUNC builtin_wait(char **argv)
 			//sig = sigwaitinfo(&allsigs, NULL);
 			/* It is vitally important for sigsuspend that SIGCHLD has non-DFL handler! */
 			/* Note: sigsuspend invokes signal handler */
+#ifndef __GNO__
 			sigsuspend(&oldset);
+#else
+			// Relies on sigset_t being a mask in suitable format for sigpause
+			sigpause(oldset);
+#endif
  restore:
 			sigprocmask(SIG_SETMASK, &oldset, NULL);
 
