@@ -119,26 +119,6 @@ unsigned bb_strtou(const char *arg, char **endp, int base) FAST_FUNC;
 int bb_strtoi(const char *arg, char **endp, int base) FAST_FUNC;
 #endif
 
-uint32_t BUG_bb_strtou32_unimplemented(void);
-static ALWAYS_INLINE
-uint32_t bb_strtou32(const char *arg, char **endp, int base)
-{
-	if (sizeof(uint32_t) == sizeof(unsigned))
-		return bb_strtou(arg, endp, base);
-	if (sizeof(uint32_t) == sizeof(unsigned long))
-		return bb_strtoul(arg, endp, base);
-	return BUG_bb_strtou32_unimplemented();
-}
-static ALWAYS_INLINE
-int32_t bb_strtoi32(const char *arg, char **endp, int base)
-{
-	if (sizeof(int32_t) == sizeof(int))
-		return bb_strtoi(arg, endp, base);
-	if (sizeof(int32_t) == sizeof(long))
-		return bb_strtol(arg, endp, base);
-	return BUG_bb_strtou32_unimplemented();
-}
-
 /* Floating point */
 
 double bb_strtod(const char *arg, char **endp) FAST_FUNC;

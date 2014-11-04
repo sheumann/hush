@@ -385,13 +385,6 @@ void FAST_FUNC xchdir(const char *path)
 		bb_perror_msg_and_die("can't change directory to '%s'", path);
 }
 
-void FAST_FUNC xchroot(const char *path)
-{
-	if (chroot(path))
-		bb_perror_msg_and_die("can't change root directory to '%s'", path);
-	xchdir("/");
-}
-
 // Print a warning message if opendir() fails, but don't die.
 DIR* FAST_FUNC warn_opendir(const char *path)
 {

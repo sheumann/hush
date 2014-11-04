@@ -38,7 +38,11 @@ static int cmp_func(const void * a, const void * b)
 		return 1;
 	if (s2 == NULL)
 		return -1;
+#ifndef __GNO__
 	return strcoll(s1, s2);
+#else
+	return strcmp(s1, s2);
+#endif
 }
 
 

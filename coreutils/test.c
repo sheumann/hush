@@ -483,7 +483,7 @@ static int equalf(const char *f1, const char *f2)
 
 static enum token check_operator(const char *s)
 {
-	static const struct operator_t no_op = {
+	static /*const*/ struct operator_t no_op = {
 		/*.op_num =*/ -1,
 		/*.op_type =*/ -1
 	};

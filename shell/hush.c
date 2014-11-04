@@ -3121,7 +3121,7 @@ static const struct reserved_combo* match_reserved_word(o_string *word)
 static int reserved_word(o_string *word, struct parse_context *ctx)
 {
 # if ENABLE_HUSH_CASE
-	static const struct reserved_combo reserved_match = {
+	static /*const*/ struct reserved_combo reserved_match = {
 		"",        RES_MATCH, NOT_ASSIGNMENT , FLAG_MATCH | FLAG_ESAC
 	};
 # endif
@@ -5870,11 +5870,13 @@ static FILE *generate_stream_from_string(const char *s, pid_t *pid_p)
 
 	xpipe(channel);
 	
-	pid = BB_MMU ? xfork() : xvfork_and_run(xforked_child, &args_struct);
 #if BB_MMU
+	pid = xfork();
 	if (pid == 0) { /* child */
 		xforked_child(&args_struct);
 	}
+#else
+	pid = xvfork_and_run(xforked_child, &args_struct);
 #endif
 
 	/* parent */
@@ -6099,7 +6101,11 @@ static void xvforked_child(void *grandchild_args) {
 	/* child */
 	pid_t pid;
 	disable_restore_tty_pgrp_on_exit();
-	pid = BB_MMU ? xfork() : xvfork_and_run(xforked_grandchild, grandchild_args);
+#if BB_MMU
+	pid = xfork();
+#else
+	pid = xvfork_and_run(xforked_grandchild, grandchild_args);
+#endif
 	if (pid != 0)
 		_exit(0);
 	xforked_grandchild(grandchild_args);  // Only get here in BB_MMU case
@@ -7212,7 +7218,9 @@ static NOINLINE int run_pipe(struct pipe *pi)
 				}
 #endif
 			}
+#if ENABLE_FEATURE_SH_NOFORK
  clean_up_and_ret:
+#endif
 			unset_vars(new_env);
 			add_vars(old_vars);
 /* clean_up_and_ret0: */
@@ -7225,7 +7233,8 @@ static NOINLINE int run_pipe(struct pipe *pi)
 			return rcode;
 		}
 
-		if (ENABLE_FEATURE_SH_NOFORK) {
+#if ENABLE_FEATURE_SH_NOFORK
+		{
 			int n = find_applet_by_name(argv_expanded[0]);
 			if (n >= 0 && APPLET_IS_NOFORK(n)) {
 				rcode = redirect_and_varexp_helper(&new_env, &old_vars, command, squirrel, argv_expanded);
@@ -7237,6 +7246,7 @@ static NOINLINE int run_pipe(struct pipe *pi)
 				goto clean_up_and_ret;
 			}
 		}
+#endif
 		/* It is neither builtin nor applet. We must fork. */
 	}
 
@@ -7285,11 +7295,13 @@ static NOINLINE int run_pipe(struct pipe *pi)
 		if (cmd_no < pi->num_cmds)
 			xpiped_pair(pipefds);
 
-		command->pid = BB_MMU ? fork() : vfork_and_run(forked_child, &args_struct);
 #if BB_MMU
+		command->pid = fork();
 		if (!command->pid) { /* child */
 			forked_child(&args_struct);
 		}
+#else
+		command->pid = vfork_and_run(forked_child, &args_struct);
 #endif
 
 		/* parent or error */

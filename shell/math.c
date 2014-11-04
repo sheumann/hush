@@ -505,11 +505,20 @@ evaluate_string(arith_state_t *math_state, const char *expr)
 	/* The proof that there can be no more than strlen(startbuf)/2+1
 	 * integers in any given correct or incorrect expression
 	 * is left as an exercise to the reader. */
-	var_or_num_t *const numstack = alloca((expr_len / 2) * sizeof(numstack[0]));
+	var_or_num_t *const numstack = malloc((expr_len / 2) * sizeof(numstack[0]));
 	var_or_num_t *numstackptr = numstack;
 	/* Stack of operator tokens */
-	operator *const stack = alloca(expr_len * sizeof(stack[0]));
+	operator *const stack = malloc(expr_len * sizeof(stack[0]));
 	operator *stackptr = stack;
+	/* Buffer to hold names of variables encountered in the expression. */
+	char *const namebuf = malloc(expr_len);
+	char *namebufptr = namebuf;
+	arith_t retval = 0;
+
+	if (numstack == NULL || stack == NULL || namebuf == NULL) {
+		errmsg = "memory allocation failure in arithmetic evaluation";
+		goto ret_with_custom_retval;
+	}
 
 	/* Start with a left paren */
 	*stackptr++ = lasttok = TOK_LPAREN;
@@ -558,7 +567,8 @@ evaluate_string(arith_state_t *math_state, const char *expr)
 		if (p != expr) {
 			/* Name */
 			size_t var_name_size = (p-expr) + 1;  /* +1 for NUL */
-			numstackptr->var = alloca(var_name_size);
+			numstackptr->var = namebufptr;
+			namebufptr += var_name_size;
 			safe_strncpy(numstackptr->var, expr, var_name_size);
 			expr = p;
  num:
@@ -693,8 +703,18 @@ evaluate_string(arith_state_t *math_state, const char *expr)
  err_with_custom_msg:
 	numstack->val = -1;
  ret:
+	retval = numstack->val;
+ ret_with_custom_retval:
 	math_state->errmsg = errmsg;
-	return numstack->val;
+
+	if (numstack)
+		free(numstack);
+	if (stack)
+		free(stack);
+	if (namebuf)
+		free(namebuf);
+
+	return retval;
 }
 
 arith_t FAST_FUNC

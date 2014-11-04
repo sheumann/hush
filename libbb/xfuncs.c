@@ -63,13 +63,16 @@ char* FAST_FUNC strncpy_IFNAMSIZ(char *dst, const char *src)
  * A truncated result contains the first few digits of the result ala strncpy.
  * Returns a pointer past last generated digit, does _not_ store NUL.
  */
-void BUG_sizeof(void);
 char* FAST_FUNC utoa_to_buf(unsigned n, char *buf, unsigned buflen)
 {
 	unsigned i, out, res;
 
 	if (buflen) {
 		out = 0;
+		if (sizeof(n) == 2)
+		// 2^16-1 = 65535
+			i = 10000;
+		else
 		if (sizeof(n) == 4)
 		// 2^32-1 = 4294967295
 			i = 1000000000;
@@ -80,7 +83,7 @@ char* FAST_FUNC utoa_to_buf(unsigned n, char *buf, unsigned buflen)
 			i = 10 ** 19;
 #endif
 		else
-			BUG_sizeof();
+			bb_error_msg_and_die("Unsupported sizeof(unsigned)");
 		for (; i; i /= 10) {
 			res = n / i;
 			n = n % i;
