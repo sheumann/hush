@@ -448,7 +448,11 @@ extern char *mkdtemp(char *template) FAST_FUNC;
 #endif
 
 #ifndef HAVE_SIGHANDLER_T
+# ifndef __GNO__
 typedef void (*sighandler_t)(int);
+# else
+typedef void (*sighandler_t)(int, int);
+# endif
 #endif
 
 #ifndef HAVE_STPCPY

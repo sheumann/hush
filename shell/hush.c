@@ -826,19 +826,25 @@ struct globals {
 	unsigned long memleak_value;
 	int debug_indent;
 #endif
+#ifndef __GNO__
 	struct sigaction sa;
+#endif
 	char user_input_buf[ENABLE_FEATURE_EDITING ? CONFIG_FEATURE_EDITING_MAX_LEN : 2];
 };
 #define G (*ptr_to_globals)
 /* Not #defining name to G.name - this quickly gets unwieldy
  * (too many defines). Also, I actually prefer to see when a variable
  * is global, thus "G." prefix is a useful hint */
-#define INIT_G() do { \
+#ifndef __GNO__
+# define INIT_G() do { \
 	SET_PTR_TO_GLOBALS(xzalloc(sizeof(G))); \
 	/* memset(&G.sa, 0, sizeof(G.sa)); */  \
 	sigfillset(&G.sa.sa_mask); \
 	G.sa.sa_flags = SA_RESTART; \
 } while (0)
+#else
+# define INIT_G() SET_PTR_TO_GLOBALS(xzalloc(sizeof(G)))
+#endif
 
 
 /* Function prototypes for builtins */
@@ -1478,8 +1484,28 @@ static void record_pending_signo(int sig)
 #endif
 }
 
+#ifdef __GNO__
+# pragma databank 1
+static void record_pending_signo_wrapper_gno(int sig, int code)
+{
+	/* Block all blockable signals now, to attempt to emulate the
+	 * behavior if this handler had been installed by the original
+	 * sigaction() call rather than GNO's signal().
+	 */
+	sigset_t new_mask, old_mask;
+	sigfillset(&new_mask);
+	sigprocmask(SIG_BLOCK, &new_mask, &old_mask);
+	
+	record_pending_signo(sig);
+	
+	sigprocmask(SIG_SETMASK, &old_mask, NULL);
+}
+# pragma databank 0
+#endif
+
 static sighandler_t install_sighandler(int sig, sighandler_t handler)
 {
+#ifndef __GNO__
 	struct sigaction old_sa;
 
 	/* We could use signal() to install handlers... almost:
@@ -1494,6 +1520,10 @@ static sighandler_t install_sighandler(int sig, sighandler_t handler)
 	G.sa.sa_handler = handler;
 	sigaction(sig, &G.sa, &old_sa);
 	return old_sa.sa_handler;
+#else
+	/* GNO doesn't have sigaction(), so we'll have to use signal(). */
+	return signal(sig, handler);
+#endif
 }
 
 #if ENABLE_HUSH_JOB
@@ -1527,6 +1557,26 @@ static void sigexit(int sig)
 
 	kill_myself_with_sig(sig); /* does not return */
 }
+
+# ifdef __GNO__
+#  pragma databank 1
+static void sigexit_wrapper_gno(int sig, int code)
+{
+	/* Block all blockable signals now, to attempt to emulate the
+	 * behavior if this handler had been installed by the original
+	 * sigaction() call rather than GNO's signal().
+	 */
+	sigset_t new_mask, old_mask;
+	sigfillset(&new_mask);
+	sigprocmask(SIG_BLOCK, &new_mask, &old_mask);
+	
+	sigexit(sig);
+	
+	// Shouldn't get here, but just in case...
+	sigprocmask(SIG_SETMASK, &old_mask, NULL);
+}
+#  pragma databank 0
+# endif
 #else
 
 # define disable_restore_tty_pgrp_on_exit() ((void)0)
@@ -1543,12 +1593,20 @@ static sighandler_t pick_sighandler(unsigned sig)
 #if ENABLE_HUSH_JOB
 		/* is sig fatal? */
 		if (G_fatal_sig_mask & sigmask)
+# ifndef __GNO__
 			handler = sigexit;
+# else
+			handler = sigexit_wrapper_gno;
+# endif
 		else
 #endif
 		/* sig has special handling? */
 		if (G.special_sig_mask & sigmask) {
+#ifndef __GNO__
 			handler = record_pending_signo;
+#else
+			handler = record_pending_signo_wrapper_gno;
+#endif
 			/* TTIN/TTOU/TSTP can't be set to record_pending_signo
 			 * in order to ignore them: they will be raised
 			 * in an endless loop when we try to do some
@@ -8632,7 +8690,11 @@ static int FAST_FUNC builtin_trap(char **argv)
 				continue;
 
 			if (new_cmd)
+#ifndef __GNO__
 				handler = (new_cmd[0] ? record_pending_signo : SIG_IGN);
+#else
+				handler = (new_cmd[0] ? record_pending_signo_wrapper_gno : SIG_IGN);
+#endif
 			else
 				/* We are removing trap handler */
 				handler = pick_sighandler(sig);
