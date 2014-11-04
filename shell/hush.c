@@ -975,7 +975,7 @@ static const struct built_in_command bltins2[] = {
  */
 #if HUSH_DEBUG
 /* prevent disasters with G.debug_indent < 0 */
-# define indent() fdprintf(2, "%*s", (G.debug_indent * 2) & 0xff, "")
+# define indent() fdprintf(STDERR_FILENO, "%*s", (G.debug_indent * 2) & 0xff, "")
 # define debug_enter() (G.debug_indent++)
 # define debug_leave() (G.debug_indent--)
 #else
@@ -1061,9 +1061,9 @@ static void real_debug_printf(const char *fmt, ...) {
 static void debug_print_strings(const char *prefix, char **vv)
 {
 	indent();
-	fdprintf(2, "%s:\n", prefix);
+	fdprintf(STDERR_FILENO, "%s:\n", prefix);
 	while (*vv)
-		fdprintf(2, " '%s'\n", *vv++);
+		fdprintf(STDERR_FILENO, " '%s'\n", *vv++);
 }
 #else
 # define debug_print_strings(prefix, vv) ((void)0)
@@ -1076,24 +1076,24 @@ static void debug_print_strings(const char *prefix, char **vv)
 static void *xxmalloc(int lineno, size_t size)
 {
 	void *ptr = xmalloc((size + 0xff) & ~0xff);
-	fdprintf(2, "line %d: malloc %p\n", lineno, ptr);
+	fdprintf(STDERR_FILENO, "line %d: malloc %p\n", lineno, ptr);
 	return ptr;
 }
 static void *xxrealloc(int lineno, void *ptr, size_t size)
 {
 	ptr = xrealloc(ptr, (size + 0xff) & ~0xff);
-	fdprintf(2, "line %d: realloc %p\n", lineno, ptr);
+	fdprintf(STDERR_FILENO, "line %d: realloc %p\n", lineno, ptr);
 	return ptr;
 }
 static char *xxstrdup(int lineno, const char *str)
 {
 	char *ptr = xstrdup(str);
-	fdprintf(2, "line %d: strdup %p\n", lineno, ptr);
+	fdprintf(STDERR_FILENO, "line %d: strdup %p\n", lineno, ptr);
 	return ptr;
 }
 static void xxfree(void *ptr)
 {
-	fdprintf(2, "free %p\n", ptr);
+	fdprintf(STDERR_FILENO, "free %p\n", ptr);
 	free(ptr);
 }
 # define xmalloc(s)     xxmalloc(__LINE__, s)
@@ -1231,7 +1231,7 @@ static char **add_strings_to_strings(char **strings, char **add, int need_to_dup
 static char **xx_add_strings_to_strings(int lineno, char **strings, char **add, int need_to_dup)
 {
 	char **ptr = add_strings_to_strings(strings, add, need_to_dup);
-	fdprintf(2, "line %d: add_strings_to_strings %p\n", lineno, ptr);
+	fdprintf(STDERR_FILENO, "line %d: add_strings_to_strings %p\n", lineno, ptr);
 	return ptr;
 }
 #define add_strings_to_strings(strings, add, need_to_dup) \
@@ -1250,7 +1250,7 @@ static char **add_string_to_strings(char **strings, char *add)
 static char **xx_add_string_to_strings(int lineno, char **strings, char *add)
 {
 	char **ptr = add_string_to_strings(strings, add);
-	fdprintf(2, "line %d: add_string_to_strings %p\n", lineno, ptr);
+	fdprintf(STDERR_FILENO, "line %d: add_string_to_strings %p\n", lineno, ptr);
 	return ptr;
 }
 #define add_string_to_strings(strings, add) \
@@ -2376,14 +2376,14 @@ static void debug_print_list(const char *prefix, o_string *o, int n)
 	int i = 0;
 
 	indent();
-	fdprintf(2, "%s: list:%p n:%d string_start:%d length:%d maxlen:%d glob:%d quoted:%d escape:%d\n",
+	fdprintf(STDERR_FILENO, "%s: list:%p n:%d string_start:%d length:%d maxlen:%d glob:%d quoted:%d escape:%d\n",
 			prefix, list, n, string_start, o->length, o->maxlen,
 			!!(o->o_expflags & EXP_FLAG_GLOB),
 			o->has_quoted_part,
 			!!(o->o_expflags & EXP_FLAG_ESC_GLOB_CHARS));
 	while (i < n) {
 		indent();
-		fdprintf(2, " list[%d]=%d '%s' %p\n", i, (int)(uintptr_t)list[i],
+		fdprintf(STDERR_FILENO, " list[%d]=%d '%s' %p\n", i, (int)(uintptr_t)list[i],
 				o->data + (int)(uintptr_t)list[i] + string_start,
 				o->data + (int)(uintptr_t)list[i] + string_start);
 		i++;
@@ -2391,7 +2391,7 @@ static void debug_print_list(const char *prefix, o_string *o, int n)
 	if (n) {
 		const char *p = o->data + (int)(uintptr_t)list[n - 1] + string_start;
 		indent();
-		fdprintf(2, " total_sz:%ld\n", (long)((p + strlen(p) + 1) - o->data));
+		fdprintf(STDERR_FILENO, " total_sz:%ld\n", (long)((p + strlen(p) + 1) - o->data));
 	}
 }
 #else
@@ -2891,18 +2891,18 @@ static void debug_print_tree(struct pipe *pi, int lvl)
 
 	pin = 0;
 	while (pi) {
-		fdprintf(2, "%*spipe %d res_word=%s followup=%d %s\n", lvl*2, "",
+		fdprintf(STDERR_FILENO, "%*spipe %d res_word=%s followup=%d %s\n", lvl*2, "",
 				pin, RES[pi->res_word], pi->followup, PIPE[pi->followup]);
 		prn = 0;
 		while (prn < pi->num_cmds) {
 			struct command *command = &pi->cmds[prn];
 			char **argv = command->argv;
 
-			fdprintf(2, "%*s cmd %d assignment_cnt:%d",
+			fdprintf(STDERR_FILENO, "%*s cmd %d assignment_cnt:%d",
 					lvl*2, "", prn,
 					command->assignment_cnt);
 			if (command->group) {
-				fdprintf(2, " group %s: (argv=%p)%s%s\n",
+				fdprintf(STDERR_FILENO, " group %s: (argv=%p)%s%s\n",
 						CMDTYPE[command->cmd_type],
 						argv
 # if !BB_MMU
@@ -2916,10 +2916,10 @@ static void debug_print_tree(struct pipe *pi, int lvl)
 				continue;
 			}
 			if (argv) while (*argv) {
-				fdprintf(2, " '%s'", *argv);
+				fdprintf(STDERR_FILENO, " '%s'", *argv);
 				argv++;
 			}
-			fdprintf(2, "\n");
+			fdprintf(STDERR_FILENO, "\n");
 			prn++;
 		}
 		pi = pi->next;
