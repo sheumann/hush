@@ -91,7 +91,7 @@ static int glob_in_dir(const char *pattern, const char *directory, int flags,
 	int nfound = 0;
 
 	int i;
-	char * ptr;
+	char * ptr = NULL;
 
 	if (!dp) {
 		if (errno != ENOTDIR
@@ -104,7 +104,9 @@ static int glob_in_dir(const char *pattern, const char *directory, int flags,
 		struct dirent *ep;
 		while ((ep = readdir(dp))) {
 			i = strlen(directory) + strlen(ep->d_name) + 2;
-			ptr = (char *) alloca(i);
+			ptr = (char *) malloc(i);
+			if (ptr == NULL)
+				goto memory_error;
 			build_fullname(ptr, directory, ep->d_name);
 			if (flags & GLOB_ONLYDIR) {
 				struct stat statr;
@@ -114,6 +116,8 @@ static int glob_in_dir(const char *pattern, const char *directory, int flags,
 			if (fnmatch(pattern, ep->d_name, fnm_flags) == 0)
 				if (add_entry(ptr,pglob,&nfound))
 					goto memory_error;
+			free(ptr);
+			ptr = NULL;
 		}
 	}
 
@@ -124,10 +128,14 @@ static int glob_in_dir(const char *pattern, const char *directory, int flags,
 	else if (flags & GLOB_NOCHECK) {
 		/* nfound == 0 */
 		i = strlen(directory) + strlen(pattern) + 2;
-		ptr = (char *) alloca(i);
+		ptr = (char *) malloc(i);
+		if (ptr == NULL)
+			goto memory_error;
 		build_fullname(ptr, directory, pattern);
 		if (add_entry(ptr,pglob,&nfound))
 			goto memory_error;
+		free(ptr);
+		ptr = NULL;
 	}
 
 	return (nfound == 0) ? GLOB_NOMATCH : 0;
@@ -136,6 +144,8 @@ static int glob_in_dir(const char *pattern, const char *directory, int flags,
 	/* We're in trouble since we can't free the already allocated memory. [allocated from strdup(filame)]
 	 * Well, after all, when malloc returns NULL we're already in a bad mood, and no doubt the
 	 * program will manage to segfault by itself very soon :-). */
+	if (ptr)
+		free(ptr);
 	close_dir_keep_errno(dp);
 	return GLOB_NOSPACE;
 }
@@ -153,6 +163,8 @@ int glob(const char *pattern, int flags, int (*errfunc)(const char * epath, int 
 	size_t i; /* tmp variables are declared here to save a bit of object space */
 	int j, k;    /* */
 	char * ptr, * ptr2;
+	
+	int retval = 0;
 
 	if (pattern == NULL || pglob == NULL || (flags & ~__GLOB_FLAGS) != 0) {
 		errno=EINVAL;
@@ -166,7 +178,9 @@ int glob(const char *pattern, int flags, int (*errfunc)(const char * epath, int 
 	/* Duplicate pattern so I can make modif to it later (to handle
            TILDE stuff replacing old contents, and to null-terminate the
            directory) */
-	pattern_ = alloca(strlen(pattern) + 1);
+	pattern_ = malloc(strlen(pattern) + 1);
+	if (pattern_ == NULL)
+		return GLOB_NOSPACE;
 	strcpy(pattern_, pattern);
 
 	/* Check for TILDE stuff */
@@ -178,25 +192,37 @@ int glob(const char *pattern, int flags, int (*errfunc)(const char * epath, int 
 		} else {
 			/* She's asking for another one's homedir */
 			struct passwd * p;
-			ptr2 = alloca(strlen(pattern_) + 1);
+			ptr2 = malloc(strlen(pattern_) + 1);
+			if (ptr2 == NULL) {
+				retval = GLOB_NOSPACE;
+				goto ret;
+			}
 			strcpy(ptr2, pattern_ + 1);
 			ptr = strchr(ptr2, '/');
 			if (ptr != NULL)
 				*ptr = '\0';
 			if (((p = getpwnam(ptr2)) != NULL))
 				home_dir = p->pw_dir;
+			free(ptr2);
 		}
 		if (home_dir != NULL) {
 			i = strlen(home_dir) + strlen(pattern_); /* pessimistic (the ~ case) */
-			ptr = alloca(i);
+			ptr = malloc(i);
+			if (ptr == NULL) {
+				retval = GLOB_NOSPACE;
+				goto ret;
+			}
 			strncpy(ptr, home_dir, i);
 			ptr2 = pattern_ + 1;
 			while (*ptr2 != '/' && *ptr2 != '\0')
 				ptr2++;
 			strncat(ptr, ptr2, i);
+			free(pattern_);
 			pattern_ = ptr;
-		} else if (flags & GLOB_TILDE_CHECK)
-			return GLOB_NOMATCH;
+		} else if (flags & GLOB_TILDE_CHECK) {
+			retval = GLOB_NOMATCH;
+			goto ret;
+		}
 	}
 
 	/* Find the filename */
@@ -222,10 +248,10 @@ int glob(const char *pattern, int flags, int (*errfunc)(const char * epath, int 
 			if (j == 0)
 				pglob->gl_flags = ((pglob->gl_flags & ~GLOB_MARK)
 						   | (flags & GLOB_MARK));
-			return j;
+			retval = j;
+			goto ret;
 		}
 	}
-
 	
 	/* Reserve memory for pglob */
 	if (!(flags & GLOB_APPEND)) {
@@ -234,8 +260,10 @@ int glob(const char *pattern, int flags, int (*errfunc)(const char * epath, int 
 			pglob->gl_pathv = NULL;
 		else {
 			pglob->gl_pathv = (char **) malloc((pglob->gl_offs + 1) * sizeof (char *));
-			if (pglob->gl_pathv == NULL)
-				return GLOB_NOSPACE;
+			if (pglob->gl_pathv == NULL) {
+				retval = GLOB_NOSPACE;
+				goto ret;
+			}
 			for (i = 0; i <= pglob->gl_offs; i++)
 				pglob->gl_pathv[i] = NULL;
 		}
@@ -250,8 +278,10 @@ int glob(const char *pattern, int flags, int (*errfunc)(const char * epath, int 
 	    || (!strchr(dirname, '*') && !strchr(dirname, '?') && !strchr(dirname, '['))) {
 		/* Approx of a terminal state, glob directly in dir. */
 		j = glob_in_dir(filename, dirname, flags, errfunc, pglob);
-		if (j != 0)
-			return j;
+		if (j != 0) {
+			retval = j;
+			goto ret;
+		}
 	} else {
 		/* We are not in a terminal state, so we have to glob for
 		   the directory, and then glob for the pattern in each
@@ -261,8 +291,10 @@ int glob(const char *pattern, int flags, int (*errfunc)(const char * epath, int 
 		j = glob(dirname, ((flags & (GLOB_ERR | GLOB_NOCHECK | GLOB_NOESCAPE | GLOB_ALTDIRFUNC))
 				   | GLOB_NOSORT | GLOB_ONLYDIR),
 			 errfunc, &dirs);
-		if (j != 0)
-			return j;
+		if (j != 0) {
+			retval = j;
+			goto ret;
+		}
 
 		/* We have successfully globbed the directory name.
 		   For each name we found, call glob_in_dir on it and FILENAME,
@@ -276,7 +308,8 @@ int glob(const char *pattern, int flags, int (*errfunc)(const char * epath, int 
 			if (j != 0) {
 				globfree(&dirs);
 				globfree(pglob);
-				return j;
+				retval = j;
+				goto ret;
 			}
 		}
 
@@ -298,7 +331,8 @@ int glob(const char *pattern, int flags, int (*errfunc)(const char * epath, int 
 					pglob->gl_pathv = (char **) realloc(pglob->gl_pathv, (j + 2) * sizeof (char *));
 					if (pglob->gl_pathv == NULL) {
 						globfree (&dirs);
-						return GLOB_NOSPACE;
+						retval = GLOB_NOSPACE;
+						goto ret;
 					}
 
 					/* okay now we add the new entry */
@@ -306,7 +340,8 @@ int glob(const char *pattern, int flags, int (*errfunc)(const char * epath, int 
 					if ((pglob->gl_pathv[j] = malloc(k)) == NULL) {
 						globfree(&dirs);
 						globfree(pglob);
-						return GLOB_NOSPACE;
+						retval = GLOB_NOSPACE;
+						goto ret;
 					}
 					build_fullname(pglob->gl_pathv[j], dirs.gl_pathv[i], filename);
 					pglob->gl_pathc++;
@@ -314,7 +349,8 @@ int glob(const char *pattern, int flags, int (*errfunc)(const char * epath, int 
 				}
 			} else {
 				globfree(&dirs);
-				return GLOB_NOMATCH;
+				retval = GLOB_NOMATCH;
+				goto ret;
 			}
 		}
 
@@ -329,7 +365,8 @@ int glob(const char *pattern, int flags, int (*errfunc)(const char * epath, int 
 				ptr = realloc(pglob->gl_pathv[i], len);
 				if (ptr == NULL) {
 					globfree(pglob);
-					return GLOB_NOSPACE;
+					retval = GLOB_NOSPACE;
+					goto ret;
 				}
 				strcpy(&ptr[len - 2], "/");
 				pglob->gl_pathv[i] = ptr;
@@ -342,7 +379,9 @@ int glob(const char *pattern, int flags, int (*errfunc)(const char * epath, int 
 		      sizeof(char *), cmp_func);
 	}
 
-	return 0;
+ ret:
+	free(pattern_);
+	return retval;
 }
 
 
