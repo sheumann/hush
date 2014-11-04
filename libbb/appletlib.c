@@ -18,3 +18,18 @@ void FAST_FUNC bb_show_usage(void)
 {
 	xfunc_die();
 }
+
+/* check if u is member of group g */
+int ingroup(uid_t u, gid_t g)
+{
+	struct group *grp = getgrgid(g);
+	if (grp) {
+		char **mem;
+		for (mem = grp->gr_mem; *mem; mem++) {
+			struct passwd *pwd = getpwnam(*mem);
+			if (pwd && (pwd->pw_uid == u))
+				return 1;
+		}
+	}
+	return 0;
+}

@@ -841,6 +841,8 @@ void die_if_bad_username(const char* name) FAST_FUNC;
 #define die_if_bad_username(name) ((void)(name))
 #endif
 
+int ingroup(uid_t u, gid_t g);
+
 #if ENABLE_FEATURE_UTMP
 void FAST_FUNC write_new_utmp(pid_t pid, int new_type, const char *tty_name, const char *username, const char *hostname);
 void FAST_FUNC update_utmp(pid_t pid, int new_type, const char *tty_name, const char *username, const char *hostname);

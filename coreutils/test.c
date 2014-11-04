@@ -390,8 +390,6 @@ struct test_statics {
 	/* set only by check_operator(), either to bogus struct
 	 * or points to matching operator_t struct. Never NULL. */
 	const struct operator_t *last_operator;
-	gid_t *group_array;
-	int ngroups;
 	jmp_buf leaving;
 };
 
@@ -401,8 +399,6 @@ extern struct test_statics *const test_ptr_to_statics;
 #define S (*test_ptr_to_statics)
 #define args            (S.args         )
 #define last_operator   (S.last_operator)
-#define group_array     (S.group_array  )
-#define ngroups         (S.ngroups      )
 #define leaving         (S.leaving      )
 
 #define INIT_S() do { \
@@ -561,46 +557,14 @@ static int binop(void)
 }
 
 
-static void initialize_group_array(void)
-{
-	int n;
-
-	/* getgroups may be expensive, try to use it only once */
-	ngroups = 32;
-	do {
-		/* FIXME: ash tries so hard to not die on OOM,
-		 * and we spoil it with just one xrealloc here */
-		/* We realloc, because test_main can be entered repeatedly by shell.
-		 * Testcase (ash): 'while true; do test -x some_file; done'
-		 * and watch top. (some_file must have owner != you) */
-		n = ngroups;
-		group_array = xrealloc(group_array, n * sizeof(gid_t));
-		ngroups = getgroups(n, group_array);
-	} while (ngroups > n);
-}
-
-
 /* Return non-zero if GID is one that we have in our groups list. */
-//XXX: FIXME: duplicate of existing libbb function?
-// see toplevel TODO file:
-// possible code duplication ingroup() and is_a_group_member()
 static int is_a_group_member(gid_t gid)
 {
-	int i;
-
-	/* Short-circuit if possible, maybe saving a call to getgroups(). */
+	/* Short-circuit if possible */
 	if (gid == getgid() || gid == getegid())
 		return 1;
-
-	if (ngroups == 0)
-		initialize_group_array();
-
-	/* Search through the list looking for GID. */
-	for (i = 0; i < ngroups; i++)
-		if (gid == group_array[i])
-			return 1;
-
-	return 0;
+		
+	return ingroup(getuid(), gid) || ingroup(geteuid(), gid);
 }
 
 
@@ -862,16 +826,6 @@ int test_main(int argc, char **argv)
 	res = setjmp(leaving);
 	if (res)
 		goto ret;
-
-	/* resetting ngroups is probably unnecessary.  it will
-	 * force a new call to getgroups(), which prevents using
-	 * group data fetched during a previous call.  but the
-	 * only way the group data could be stale is if there's
-	 * been an intervening call to setgroups(), and this
-	 * isn't likely in the case of a shell.  paranoia
-	 * prevails...
-	 */
-	/*ngroups = 0; - done by INIT_S() */
 
 	argv++;
 	args = argv;
