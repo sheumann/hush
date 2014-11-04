@@ -10,10 +10,14 @@
 #include "libbb.h"
 
 #define type long
-#define xstrtou(rest) xstrtoul##rest
-#define xstrto(rest) xstrtol##rest
-#define xatou(rest) xatoul##rest
-#define xato(rest) xatol##rest
+#define xstrtou xstrtoul
+#define xstrto xstrtol
+#define xatou xatoul
+#define xato xatol
+#define xstrtou_(rest) xstrtoul_##rest
+#define xstrto_(rest) xstrtol_##rest
+#define xatou_(rest) xatoul_##rest
+#define xato_(rest) xatol_##rest
 #define XSTR_UTYPE_MAX ULONG_MAX
 #define XSTR_TYPE_MAX LONG_MAX
 #define XSTR_TYPE_MIN LONG_MIN
@@ -32,10 +36,14 @@ unsigned bb_strtoui(const char *str, char **end, int b)
 	return v;
 }
 #define type int
-#define xstrtou(rest) xstrtou##rest
-#define xstrto(rest) xstrtoi##rest
-#define xatou(rest) xatou##rest
-#define xato(rest) xatoi##rest
+#define xstrtou xstrtou
+#define xstrto xstrtoi
+#define xatou xatou
+#define xato xatoi
+#define xstrtou_(rest) xstrtou_##rest
+#define xstrto_(rest) xstrtoi_##rest
+#define xatou_(rest) xatou_##rest
+#define xato_(rest) xatoi_##rest
 #define XSTR_UTYPE_MAX UINT_MAX
 #define XSTR_TYPE_MAX INT_MAX
 #define XSTR_TYPE_MIN INT_MIN

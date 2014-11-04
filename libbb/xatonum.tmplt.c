@@ -6,17 +6,21 @@
 You need to define the following (example):
 
 #define type long
-#define xstrtou(rest) xstrtoul##rest
-#define xstrto(rest) xstrtol##rest
-#define xatou(rest) xatoul##rest
-#define xato(rest) xatol##rest
+#define xstrtou xstrtoul
+#define xstrto xstrtol
+#define xatou xatoul
+#define xato xatol
+#define xstrtou_(rest) xstrtoul_##rest
+#define xstrto_(rest) xstrtol_##rest
+#define xatou_(rest) xatoul_##rest
+#define xato_(rest) xatol_##rest
 #define XSTR_UTYPE_MAX ULONG_MAX
 #define XSTR_TYPE_MAX LONG_MAX
 #define XSTR_TYPE_MIN LONG_MIN
 #define XSTR_STRTOU strtoul
 */
 
-unsigned type FAST_FUNC xstrtou(_range_sfx)(const char *numstr, int base,
+unsigned type FAST_FUNC xstrtou_(range_sfx)(const char *numstr, int base,
 		unsigned type lower,
 		unsigned type upper,
 		const struct suffix_mult *suffixes)
@@ -74,53 +78,53 @@ unsigned type FAST_FUNC xstrtou(_range_sfx)(const char *numstr, int base,
 	bb_error_msg_and_die("invalid number '%s'", numstr);
 }
 
-unsigned type FAST_FUNC xstrtou(_range)(const char *numstr, int base,
+unsigned type FAST_FUNC xstrtou_(range)(const char *numstr, int base,
 		unsigned type lower,
 		unsigned type upper)
 {
-	return xstrtou(_range_sfx)(numstr, base, lower, upper, NULL);
+	return xstrtou_(range_sfx)(numstr, base, lower, upper, NULL);
 }
 
-unsigned type FAST_FUNC xstrtou(_sfx)(const char *numstr, int base,
+unsigned type FAST_FUNC xstrtou_(sfx)(const char *numstr, int base,
 		const struct suffix_mult *suffixes)
 {
-	return xstrtou(_range_sfx)(numstr, base, 0, XSTR_UTYPE_MAX, suffixes);
+	return xstrtou_(range_sfx)(numstr, base, 0, XSTR_UTYPE_MAX, suffixes);
 }
 
-unsigned type FAST_FUNC xstrtou()(const char *numstr, int base)
+unsigned type FAST_FUNC xstrtou(const char *numstr, int base)
 {
-	return xstrtou(_range_sfx)(numstr, base, 0, XSTR_UTYPE_MAX, NULL);
+	return xstrtou_(range_sfx)(numstr, base, 0, XSTR_UTYPE_MAX, NULL);
 }
 
-unsigned type FAST_FUNC xatou(_range_sfx)(const char *numstr,
+unsigned type FAST_FUNC xatou_(range_sfx)(const char *numstr,
 		unsigned type lower,
 		unsigned type upper,
 		const struct suffix_mult *suffixes)
 {
-	return xstrtou(_range_sfx)(numstr, 10, lower, upper, suffixes);
+	return xstrtou_(range_sfx)(numstr, 10, lower, upper, suffixes);
 }
 
-unsigned type FAST_FUNC xatou(_range)(const char *numstr,
+unsigned type FAST_FUNC xatou_(range)(const char *numstr,
 		unsigned type lower,
 		unsigned type upper)
 {
-	return xstrtou(_range_sfx)(numstr, 10, lower, upper, NULL);
+	return xstrtou_(range_sfx)(numstr, 10, lower, upper, NULL);
 }
 
-unsigned type FAST_FUNC xatou(_sfx)(const char *numstr,
+unsigned type FAST_FUNC xatou_(sfx)(const char *numstr,
 		const struct suffix_mult *suffixes)
 {
-	return xstrtou(_range_sfx)(numstr, 10, 0, XSTR_UTYPE_MAX, suffixes);
+	return xstrtou_(range_sfx)(numstr, 10, 0, XSTR_UTYPE_MAX, suffixes);
 }
 
-unsigned type FAST_FUNC xatou()(const char *numstr)
+unsigned type FAST_FUNC xatou(const char *numstr)
 {
-	return xatou(_sfx)(numstr, NULL);
+	return xatou_(sfx)(numstr, NULL);
 }
 
 /* Signed ones */
 
-type FAST_FUNC xstrto(_range_sfx)(const char *numstr, int base,
+type FAST_FUNC xstrto_(range_sfx)(const char *numstr, int base,
 		type lower,
 		type upper,
 		const struct suffix_mult *suffixes)
@@ -137,51 +141,51 @@ type FAST_FUNC xstrto(_range_sfx)(const char *numstr, int base,
 			++u; /* = <type>_MIN (01111... + 1 == 10000...) */
 	}
 
-	r = xstrtou(_range_sfx)(p, base, 0, u, suffixes);
+	r = xstrtou_(range_sfx)(p, base, 0, u, suffixes);
 
 	if (*numstr == '-') {
 		r = -r;
 	}
 
 	if (r < lower || r > upper) {
-		bb_error_msg_and_die("number %s is not in %lld..%lld range",
-				numstr, (long long)lower, (long long)upper);
+		bb_error_msg_and_die("number %s is not in %" PRIdMAX "..%" PRIdMAX " range",
+				numstr, (uintmax_t)lower, (uintmax_t)upper);
 	}
 
 	return r;
 }
 
-type FAST_FUNC xstrto(_range)(const char *numstr, int base, type lower, type upper)
+type FAST_FUNC xstrto_(range)(const char *numstr, int base, type lower, type upper)
 {
-	return xstrto(_range_sfx)(numstr, base, lower, upper, NULL);
+	return xstrto_(range_sfx)(numstr, base, lower, upper, NULL);
 }
 
-type FAST_FUNC xstrto()(const char *numstr, int base)
+type FAST_FUNC xstrto(const char *numstr, int base)
 {
-	return xstrto(_range_sfx)(numstr, base, XSTR_TYPE_MIN, XSTR_TYPE_MAX, NULL);
+	return xstrto_(range_sfx)(numstr, base, XSTR_TYPE_MIN, XSTR_TYPE_MAX, NULL);
 }
 
-type FAST_FUNC xato(_range_sfx)(const char *numstr,
+type FAST_FUNC xato_(range_sfx)(const char *numstr,
 		type lower,
 		type upper,
 		const struct suffix_mult *suffixes)
 {
-	return xstrto(_range_sfx)(numstr, 10, lower, upper, suffixes);
+	return xstrto_(range_sfx)(numstr, 10, lower, upper, suffixes);
 }
 
-type FAST_FUNC xato(_range)(const char *numstr, type lower, type upper)
+type FAST_FUNC xato_(range)(const char *numstr, type lower, type upper)
 {
-	return xstrto(_range_sfx)(numstr, 10, lower, upper, NULL);
+	return xstrto_(range_sfx)(numstr, 10, lower, upper, NULL);
 }
 
-type FAST_FUNC xato(_sfx)(const char *numstr, const struct suffix_mult *suffixes)
+type FAST_FUNC xato_(sfx)(const char *numstr, const struct suffix_mult *suffixes)
 {
-	return xstrto(_range_sfx)(numstr, 10, XSTR_TYPE_MIN, XSTR_TYPE_MAX, suffixes);
+	return xstrto_(range_sfx)(numstr, 10, XSTR_TYPE_MIN, XSTR_TYPE_MAX, suffixes);
 }
 
-type FAST_FUNC xato()(const char *numstr)
+type FAST_FUNC xato(const char *numstr)
 {
-	return xstrto(_range_sfx)(numstr, 10, XSTR_TYPE_MIN, XSTR_TYPE_MAX, NULL);
+	return xstrto_(range_sfx)(numstr, 10, XSTR_TYPE_MIN, XSTR_TYPE_MAX, NULL);
 }
 
 #undef type
@@ -189,6 +193,10 @@ type FAST_FUNC xato()(const char *numstr)
 #undef xstrto
 #undef xatou
 #undef xato
+#undef xstrtou_
+#undef xstrto_
+#undef xatou_
+#undef xato_
 #undef XSTR_UTYPE_MAX
 #undef XSTR_TYPE_MAX
 #undef XSTR_TYPE_MIN
