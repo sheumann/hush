@@ -58,6 +58,13 @@
 #include <sys/param.h>
 #include <pwd.h>
 #include <grp.h>
+/* Include <gno/gno.h> for GNO job control calls.  Define __KERN_STATUS to
+ * avoid a couple definitions using ORCA/C's nonstandard inline directive.
+ */
+#ifdef __GNO__
+# define __KERN_STATUS
+# include <gno/gno.h>
+#endif
 #if ENABLE_FEATURE_SHADOWPASSWDS
 # if !ENABLE_USE_BB_SHADOW
 /* If using busybox's shadow implementation, do not include the shadow.h

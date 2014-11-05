@@ -1548,7 +1548,12 @@ static void sigexit(int sig)
 		 * Mostly paranoid measure, to prevent infinite SIGTTOU.
 		 */
 		sigprocmask_allsigs(SIG_BLOCK);
+# ifndef __GNO__
 		tcsetpgrp(G_interactive_fd, G_saved_tty_pgrp);
+# else
+		setpgid(getpid(), G_saved_tty_pgrp);
+		tctpgrp(G_interactive_fd, getpid());
+# endif
 	}
 
 	/* Not a signal, just exit */
@@ -7005,7 +7010,11 @@ static int checkjobs_and_fg_shell(struct pipe *fg_pipe)
 		/* Job finished, move the shell to the foreground */
 		p = getpgrp(); /* our process group id */
 		debug_printf_jobs(("fg'ing ourself: getpgrp()=%d\n", (int)p));
+#ifndef __GNO__
 		tcsetpgrp(G_interactive_fd, p);
+#else
+		tctpgrp(G_interactive_fd, getpid());
+#endif
 	}
 	return rcode;
 }
@@ -7429,7 +7438,11 @@ static void forked_child(void *args_struct) {
 		) {
 			/* We do it in *every* child, not just first,
 			 * to avoid races */
+# ifndef __GNO__
 			tcsetpgrp(G_interactive_fd, pgrp);
+# else
+			tctpgrp(G_interactive_fd, getpid());
+# endif
 		}
 	}
 #endif
@@ -8242,7 +8255,11 @@ int hush_main(int argc, char **argv)
 	 */
 #if ENABLE_HUSH_JOB
 	if (isatty(STDIN_FILENO) && isatty(STDOUT_FILENO)) {
+# ifndef __GNO__
 		G_saved_tty_pgrp = tcgetpgrp(STDIN_FILENO);
+# else
+		G_saved_tty_pgrp = getpgrp();
+# endif
 		debug_printf(("saved_tty_pgrp:%d\n", G_saved_tty_pgrp));
 		if (G_saved_tty_pgrp < 0)
 			G_saved_tty_pgrp = 0;
@@ -8265,6 +8282,7 @@ int hush_main(int argc, char **argv)
 	if (G_interactive_fd) {
 		close_on_exec_on(G_interactive_fd);
 
+# ifndef __GNO__
 		if (G_saved_tty_pgrp) {
 			/* If we were run as 'hush &', sleep until we are
 			 * in the foreground (tty pgrp == our pgrp).
@@ -8293,6 +8311,19 @@ int hush_main(int argc, char **argv)
 			/* Grab control of the terminal */
 			tcsetpgrp(G_interactive_fd, getpid());
 		}
+# else
+		if (G_saved_tty_pgrp) {
+			/* tcnewpgrp() should generate SIGTTOU if we're not in the
+			 * foreground, having an effect similar to the loop in the
+			 * original code. */
+			tcnewpgrp(G_interactive_fd);
+			install_fatal_sighandlers();
+			install_special_sighandlers();
+			settpgrp(G_interactive_fd);
+		} else {
+			install_special_sighandlers();
+		}
+# endif
 		/* -1 is special - makes xfuncs longjmp, not exit
 		 * (we reset die_sleep = 0 whereever we [v]fork) */
 		enable_restore_tty_pgrp_on_exit(); /* sets die_sleep = -1 */
@@ -8468,8 +8499,14 @@ static int FAST_FUNC builtin_exec(char **argv)
 
 	/* Careful: we can end up here after [v]fork. Do not restore
 	 * tty pgrp then, only top-level shell process does that */
-	if (G_saved_tty_pgrp && getpid() == G.root_pid)
+	if (G_saved_tty_pgrp && getpid() == G.root_pid) {
+#ifndef __GNO__
 		tcsetpgrp(G_interactive_fd, G_saved_tty_pgrp);
+#else
+		setpgid(getpid(), G_saved_tty_pgrp);
+		tctpgrp(G_interactive_fd, getpid());
+#endif
+	}
 
 	/* TODO: if exec fails, bash does NOT exit! We do.
 	 * We'll need to undo trap cleanup (it's inside execvp_or_die)
@@ -8797,7 +8834,19 @@ static int FAST_FUNC builtin_fg_bg(char **argv)
 	 * of job being foregrounded (like "sleep 1 | cat") */
 	if (argv[0][0] == 'f' && G_saved_tty_pgrp) {
 		/* Put the job into the foreground.  */
+# ifndef __GNO__
 		tcsetpgrp(G_interactive_fd, pi->pgrp);
+# else
+		/* Loop through commands trying to find one that's not done and 
+		 * set the foreground pgrp based on that (they should all be in
+		 * the same pgrp).
+		 */
+		for (i = 0; i < pi->num_cmds; i++) {
+			pid_t pid = pi->cmds[i].pid;
+			if (pid != 0 && tctpgrp(G_interactive_fd, pid) == 0)
+				break;
+		}
+# endif
 	}
 
 	/* Restart the processes in the job */
