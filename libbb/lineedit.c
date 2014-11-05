@@ -2247,14 +2247,24 @@ int FAST_FUNC read_line_input(line_input_t *st, const char *prompt, char *comman
 #if ENABLE_FEATURE_EDITING_VI
 	smallint vi_cmdmode = 0;
 #endif
+#ifndef __GNO__
 	struct termios initial_settings;
 	struct termios new_settings;
+#else
+	struct sgttyb initial_settings;
+	struct sgttyb new_settings;
+#endif
 	char read_key_buffer[KEYCODE_BUFFER_SIZE];
 
 	INIT_S();
 
+#ifndef __GNO__
 	if (tcgetattr(STDIN_FILENO, &initial_settings) < 0
 	 || !(initial_settings.c_lflag & ECHO)
+#else
+	if (ioctl(STDIN_FILENO, TIOCGETP, &initial_settings) < 0
+	 || !(initial_settings.sg_flags & ECHO)
+#endif
 	) {
 		/* Happens when e.g. stty -echo was run before */
 		parse_and_put_prompt(prompt);
@@ -2298,6 +2308,7 @@ int FAST_FUNC read_line_input(line_input_t *st, const char *prompt, char *comman
 #define command command_must_not_be_used
 
 	new_settings = initial_settings;
+#ifndef __GNO__
 	/* ~ICANON: unbuffered input (most c_cc[] are disabled, VMIN/VTIME are enabled) */
 	/* ~ECHO, ~ECHONL: turn off echoing, including newline echoing */
 	/* ~ISIG: turn off INTR (ctrl-C), QUIT, SUSP */
@@ -2310,6 +2321,11 @@ int FAST_FUNC read_line_input(line_input_t *st, const char *prompt, char *comman
 	/* Turn off CTRL-C */
 	/* new_settings.c_cc[VINTR] = _POSIX_VDISABLE; */
 	tcsetattr_stdin_TCSANOW(&new_settings);
+#else
+	new_settings.sg_flags |= CBREAK;
+	new_settings.sg_flags &= ~ECHO;
+	ioctl(STDIN_FILENO, TIOCSETN, &new_settings);
+#endif
 
 #if ENABLE_USERNAME_OR_HOMEDIR
 	{
@@ -2682,8 +2698,12 @@ int FAST_FUNC read_line_input(line_input_t *st, const char *prompt, char *comman
 			break;
 
 		default:
+#ifndef __GNO__
 			if (initial_settings.c_cc[VINTR] != 0
 			 && ic_raw == initial_settings.c_cc[VINTR]
+#else
+			if (ic_raw == CINTR
+#endif
 			) {
 				/* Ctrl-C (usually) - stop gathering input */
 				goto_new_line();
@@ -2691,8 +2711,12 @@ int FAST_FUNC read_line_input(line_input_t *st, const char *prompt, char *comman
 				break_out = -1; /* "do not append '\n'" */
 				break;
 			}
+#ifndef __GNO__
 			if (initial_settings.c_cc[VEOF] != 0
 			 && ic_raw == initial_settings.c_cc[VEOF]
+#else
+			if (ic_raw == CEOF
+#endif
 			) {
 				/* Ctrl-D (usually) - delete one character,
 				 * or exit if len=0 and no chars to delete */
@@ -2806,7 +2830,11 @@ int FAST_FUNC read_line_input(line_input_t *st, const char *prompt, char *comman
 #endif
 
 	/* restore initial_settings */
+#ifndef __GNO__
 	tcsetattr_stdin_TCSANOW(&initial_settings);
+#else
+	ioctl(STDIN_FILENO, TIOCSETN, &initial_settings);
+#endif
 	/* restore SIGWINCH handler */
 	signal(SIGWINCH, previous_SIGWINCH_handler);
 	fflush_all();

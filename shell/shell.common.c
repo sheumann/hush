@@ -62,7 +62,11 @@ shell_builtin_read(void FAST_FUNC (*setvar)(const char *name, const char *val),
 	int nchars; /* -n NUM */
 	char **pp;
 	char *buffer;
+#ifndef __GNO__
 	struct termios tty, old_tty;
+#else
+	struct sgttyb tty, old_tty;
+#endif
 	const char *retval;
 	int bufpos; /* need to be able to hold -1 */
 	int startword;
@@ -134,9 +138,14 @@ shell_builtin_read(void FAST_FUNC (*setvar)(const char *name, const char *val),
 		ifs = defifs;
 
 	if (nchars || (read_flags & BUILTIN_READ_SILENT)) {
+#ifndef __GNO__
 		tcgetattr(fd, &tty);
+#else
+		ioctl(fd, TIOCGETP, &tty);
+#endif
 		old_tty = tty;
 		if (nchars) {
+#ifndef __GNO__
 			tty.c_lflag &= ~ICANON;
 			// Setting it to more than 1 breaks poll():
 			// it blocks even if there's data. !??
@@ -145,15 +154,26 @@ shell_builtin_read(void FAST_FUNC (*setvar)(const char *name, const char *val),
 			tty.c_cc[VMIN] = 1;
 			/* no timeout (reads block forever) */
 			tty.c_cc[VTIME] = 0;
+#else
+			tty.sg_flags |= CBREAK;
+#endif
 		}
 		if (read_flags & BUILTIN_READ_SILENT) {
+#ifndef __GNO__
 			tty.c_lflag &= ~(ECHO | ECHOK | ECHONL);
+#else
+			tty.sg_flags &= ~ECHO;
+#endif
 		}
 		/* This forces execution of "restoring" tcgetattr later */
 		read_flags |= BUILTIN_READ_SILENT;
 		/* if tcgetattr failed, tcsetattr will fail too.
 		 * Ignoring, it's harmless. */
+#ifndef __GNO__
 		tcsetattr(fd, TCSANOW, &tty);
+#else
+		ioctl(fd, TIOCSETN, &tty);
+#endif
 	}
 
 	retval = (const char *)(uintptr_t)0;
@@ -267,7 +287,11 @@ shell_builtin_read(void FAST_FUNC (*setvar)(const char *name, const char *val),
  ret:
 	free(buffer);
 	if (read_flags & BUILTIN_READ_SILENT)
+#ifndef __GNO__
 		tcsetattr(fd, TCSANOW, &old_tty);
+#else
+		ioctl(fd, TIOCSETN, &old_tty);
+#endif
 
 	errno = err;
 	return retval;

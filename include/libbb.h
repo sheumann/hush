@@ -35,6 +35,16 @@
 #undef basename
 #define basename dont_use_basename
 #include "poll.h"
+/* Don't include termios.h in GNO because termios isn't actually implemented,
+ * but the header has a define for ECHO that conflicts with the one needed for
+ * the ioctls that we use instead.  Do define USE_OLD_TTY before including
+ * <sys/ioctl.h>, which is needed to get defines for those ioctls.
+ */
+#ifndef __GNO__
+# include <termios.h>
+#else
+# define USE_OLD_TTY
+#endif
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -44,7 +54,6 @@
 # include <sys/sysmacros.h>
 #endif
 #include <sys/wait.h>
-#include <termios.h>
 #include <time.h>
 #include <sys/param.h>
 #include <pwd.h>
@@ -118,9 +127,6 @@
 #endif
 #ifndef HAVE_FDATASYNC
 # define fdatasync fsync
-#endif
-#ifndef HAVE_XTABS
-# define XTABS TAB3
 #endif
 
 
@@ -1115,8 +1121,6 @@ extern int match_fstype(const struct mntent *mt, const char *fstypes) FAST_FUNC;
 extern struct mntent *find_mount_point(const char *name, int subdir_too) FAST_FUNC;
 #endif
 extern void erase_mtab(const char * name) FAST_FUNC;
-extern unsigned int tty_baud_to_value(speed_t speed) FAST_FUNC;
-extern speed_t tty_value_to_baud(unsigned int value) FAST_FUNC;
 #if ENABLE_DESKTOP
 extern void bb_warn_ignoring_args(char *arg) FAST_FUNC;
 #else
@@ -1269,7 +1273,9 @@ char *xmalloc_ttyname(int fd) FAST_FUNC RETURNS_MALLOC;
 /* NB: typically you want to pass fd 0, not 1. Think 'applet | grep something' */
 int get_terminal_width_height(int fd, unsigned *width, unsigned *height) FAST_FUNC;
 
+#ifndef __GNO__
 int tcsetattr_stdin_TCSANOW(const struct termios *tp) FAST_FUNC;
+#endif
 
 /* NB: "unsigned request" is crucial! "int request" will break some arches! */
 int ioctl_or_perror(int fd, unsigned request, void *argp, const char *fmt,...) __attribute__ ((format (printf, 4, 5))) FAST_FUNC;

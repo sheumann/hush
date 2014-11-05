@@ -277,10 +277,12 @@ int FAST_FUNC get_terminal_width_height(int fd, unsigned *width, unsigned *heigh
 	return err;
 }
 
+#ifndef __GNO__
 int FAST_FUNC tcsetattr_stdin_TCSANOW(const struct termios *tp)
 {
 	return tcsetattr(STDIN_FILENO, TCSANOW, tp);
 }
+#endif
 
 pid_t FAST_FUNC safe_waitpid(pid_t pid, wait_status_t *wstat, int options)
 {
