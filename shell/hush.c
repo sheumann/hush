@@ -1870,7 +1870,7 @@ static int set_local_var(char *str, int flg_export, int local_lvl, int flg_read_
 			return -1;
 		}
 		if (flg_export == -1) { // "&& cur->flg_export" ?
-			debug_printf_env(("%s: unsetenv '%s'\n", __func__, str));
+			debug_printf_env(("%s: unsetenv '%s'\n", "set_local_var", str));
 			*eq_sign = '\0';
 			unsetenv(str);
 			*eq_sign = '=';
@@ -1940,7 +1940,7 @@ static int set_local_var(char *str, int flg_export, int local_lvl, int flg_read_
 			cur->flg_export = 0;
 			/* unsetenv was already done */
 		} else {
-			debug_printf_env(("%s: putenv '%s'\n", __func__, cur->varstr));
+			debug_printf_env(("%s: putenv '%s'\n", "set_local_var", cur->varstr));
 			return putenv(cur->varstr);
 		}
 	}
@@ -1969,7 +1969,7 @@ static int unset_local_var_len(const char *name, int name_len)
 				return EXIT_FAILURE;
 			}
 			*var_pp = cur->next;
-			debug_printf_env(("%s: unsetenv '%s'\n", __func__, cur->varstr));
+			debug_printf_env(("%s: unsetenv '%s'\n", "unset_local_var_len", cur->varstr));
 			bb_unsetenv(cur->varstr);
 			if (name_len == 3 && cur->varstr[0] == 'P' && cur->varstr[1] == 'S')
 				cmdedit_update_prompt();
@@ -2022,10 +2022,10 @@ static void add_vars(struct variable *var)
 		var->next = G.top_var;
 		G.top_var = var;
 		if (var->flg_export) {
-			debug_printf_env(("%s: restoring exported '%s'\n", __func__, var->varstr));
+			debug_printf_env(("%s: restoring exported '%s'\n", "add_vars", var->varstr));
 			putenv(var->varstr);
 		} else {
-			debug_printf_env(("%s: restoring variable '%s'\n", __func__, var->varstr));
+			debug_printf_env(("%s: restoring variable '%s'\n", "add_vars", var->varstr));
 		}
 		var = next;
 	}
@@ -2050,7 +2050,7 @@ static struct variable *set_vars_and_save_old(char **strings)
 			if (var_pp) {
 				/* Remove variable from global linked list */
 				var_p = *var_pp;
-				debug_printf_env(("%s: removing '%s'\n", __func__, var_p->varstr));
+				debug_printf_env(("%s: removing '%s'\n", "set_vars_and_save_old", var_p->varstr));
 				*var_pp = var_p->next;
 				/* Add it to returned list */
 				var_p->next = old;
@@ -2910,41 +2910,9 @@ static void free_pipe_list(struct pipe *pi)
 #ifndef debug_print_tree
 static void debug_print_tree(struct pipe *pi, int lvl)
 {
-	static const char *const PIPE[] = {
-		[PIPE_SEQ] = "SEQ",
-		[PIPE_AND] = "AND",
-		[PIPE_OR ] = "OR" ,
-		[PIPE_BG ] = "BG" ,
-	};
-	static const char *RES[] = {
-		[RES_NONE ] = "NONE" ,
-# if ENABLE_HUSH_IF
-		[RES_IF   ] = "IF"   ,
-		[RES_THEN ] = "THEN" ,
-		[RES_ELIF ] = "ELIF" ,
-		[RES_ELSE ] = "ELSE" ,
-		[RES_FI   ] = "FI"   ,
-# endif
-# if ENABLE_HUSH_LOOPS
-		[RES_FOR  ] = "FOR"  ,
-		[RES_WHILE] = "WHILE",
-		[RES_UNTIL] = "UNTIL",
-		[RES_DO   ] = "DO"   ,
-		[RES_DONE ] = "DONE" ,
-# endif
-# if ENABLE_HUSH_LOOPS || ENABLE_HUSH_CASE
-		[RES_IN   ] = "IN"   ,
-# endif
-# if ENABLE_HUSH_CASE
-		[RES_CASE ] = "CASE" ,
-		[RES_CASE_IN ] = "CASE_IN" ,
-		[RES_MATCH] = "MATCH",
-		[RES_CASE_BODY] = "CASE_BODY",
-		[RES_ESAC ] = "ESAC" ,
-# endif
-		[RES_XXXX ] = "XXXX" ,
-		[RES_SNTX ] = "SNTX" ,
-	};
+	static bool initialized = 0;
+	static const char *PIPE[PIPE_BG + 1];
+	static const char *RES[RES_SNTX + 1];
 	static const char *const CMDTYPE[] = {
 		"{}",
 		"()",
@@ -2955,6 +2923,43 @@ static void debug_print_tree(struct pipe *pi, int lvl)
 	};
 
 	int pin, prn;
+	
+	if (!initialized) {
+		PIPE[PIPE_SEQ] = "SEQ";
+		PIPE[PIPE_AND] = "AND";
+		PIPE[PIPE_OR ] = "OR";
+		PIPE[PIPE_BG ] = "BG";
+
+		RES[RES_NONE ] = "NONE" ,
+# if ENABLE_HUSH_IF
+		RES[RES_IF   ] = "IF"   ,
+		RES[RES_THEN ] = "THEN" ,
+		RES[RES_ELIF ] = "ELIF" ,
+		RES[RES_ELSE ] = "ELSE" ,
+		RES[RES_FI   ] = "FI"   ,
+# endif
+# if ENABLE_HUSH_LOOPS
+		RES[RES_FOR  ] = "FOR"  ,
+		RES[RES_WHILE] = "WHILE",
+		RES[RES_UNTIL] = "UNTIL",
+		RES[RES_DO   ] = "DO"   ,
+		RES[RES_DONE ] = "DONE" ,
+# endif
+# if ENABLE_HUSH_LOOPS || ENABLE_HUSH_CASE
+		RES[RES_IN   ] = "IN"   ,
+# endif
+# if ENABLE_HUSH_CASE
+		RES[RES_CASE ] = "CASE" ,
+		RES[RES_CASE_IN ] = "CASE_IN" ,
+		RES[RES_MATCH] = "MATCH",
+		RES[RES_CASE_BODY] = "CASE_BODY",
+		RES[RES_ESAC ] = "ESAC" ,
+# endif
+		RES[RES_XXXX ] = "XXXX" ,
+		RES[RES_SNTX ] = "SNTX" ,
+
+		initialized = 1;
+	}
 
 	pin = 0;
 	while (pi) {
@@ -8543,7 +8548,7 @@ static int FAST_FUNC builtin_exec(char **argv)
 
 static int FAST_FUNC builtin_exit(char **argv)
 {
-	debug_printf_exec(("%s()\n", __func__));
+	debug_printf_exec(("%s()\n", "builtin_exit"));
 
 	/* interactive bash:
 	 * # trap "echo EEE" EXIT
@@ -8609,7 +8614,7 @@ static void helper_export_local(char **argv, int exp, int lvl)
 				/* export -n NAME (without =VALUE) */
 				if (var) {
 					var->flg_export = 0;
-					debug_printf_env(("%s: unsetenv '%s'\n", __func__, name));
+					debug_printf_env(("%s: unsetenv '%s'\n", "helper_export_local", name));
 					unsetenv(name);
 				} /* else: export -n NOT_EXISTING_VAR: no-op */
 				continue;
@@ -8618,7 +8623,7 @@ static void helper_export_local(char **argv, int exp, int lvl)
 				/* export NAME (without =VALUE) */
 				if (var) {
 					var->flg_export = 1;
-					debug_printf_env(("%s: putenv '%s'\n", __func__, var->varstr));
+					debug_printf_env(("%s: putenv '%s'\n", "helper_export_local", var->varstr));
 					putenv(var->varstr);
 					continue;
 				}
