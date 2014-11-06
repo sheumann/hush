@@ -5959,6 +5959,9 @@ static FILE *generate_stream_from_string(const char *s, pid_t *pid_p)
 	return xfdopen_for_read(channel[0]);
 }
 
+#ifdef __ORCAC__
+# pragma databank 1
+#endif
 static void xforked_child(void *args_struct) {
 	struct child_args2 *args = (struct child_args2 *)args_struct;
 
@@ -6036,6 +6039,9 @@ static void xforked_child(void *args_struct) {
 			NULL);
 # endif
 }
+#ifdef __ORCAC__
+# pragma databank 0
+#endif
 
 
 /* Return code is exit status of the process that is run. */
@@ -6160,6 +6166,9 @@ static void setup_heredoc(struct redir_struct *redir)
 	wait(NULL); /* wait till child has died */
 }
 
+#ifdef __ORCAC__
+# pragma databank 1
+#endif
 static void xvforked_child(void *grandchild_args) {
 	/* child */
 	pid_t pid;
@@ -6187,6 +6196,9 @@ static void xforked_grandchild(void *args_struct) {
 	re_execute_shell(args->to_free_p, args->heredoc, NULL, NULL, NULL);
 #endif
 }
+#ifdef __ORCAC__
+# pragma databank 0
+#endif
 
 
 /* squirrel != NULL means we squirrel away copies of stdin, stdout,
@@ -7418,6 +7430,9 @@ static NOINLINE int run_pipe(struct pipe *pi)
 }
 	
 
+#ifdef __ORCAC__
+# pragma databank 1
+#endif
 static void forked_child(void *args_struct) {
 	struct child_args *args = (struct child_args *)args_struct;
 
@@ -7469,6 +7484,9 @@ static void forked_child(void *args_struct) {
 	pseudo_exec((nommu_save_t*) args->nommu_save_p, *args->command_p, *args->argv_expanded_p);
 	/* pseudo_exec() does not return */
 }
+#ifdef __ORCAC__
+# pragma databank 0
+#endif
 
 
 /* NB: called by pseudo_exec, and therefore must not modify any
