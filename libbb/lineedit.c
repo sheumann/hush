@@ -1867,6 +1867,7 @@ static void parse_and_put_prompt(const char *prmt_ptr)
 				case '$':
 					c = (geteuid() == 0 ? '#' : '$');
 					break;
+#ifndef __GNO__
 				case 'T': /* 12-hour HH:MM:SS format */
 				case '@': /* 12-hour am/pm format */
 				case 'A': /* 24-hour HH:MM format */
@@ -1875,6 +1876,7 @@ static void parse_and_put_prompt(const char *prmt_ptr)
 					strftime_HHMMSS(timebuf, sizeof(timebuf), NULL)[-3] = '\0';
 					pbuf = timebuf;
 					break;
+#endif
 # if ENABLE_USERNAME_OR_HOMEDIR
 				case 'w': /* current dir */
 				case 'W': /* basename of cur dir */
