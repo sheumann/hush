@@ -16,7 +16,6 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <netdb.h>
 #include <setjmp.h>
 #include <signal.h>
 #if defined __UCLIBC__ /* TODO: and glibc? */
@@ -948,12 +947,10 @@ enum {
 	DAEMON_DOUBLE_FORK = 16 /* double fork to avoid controlling tty */
 };
 #if BB_MMU
-  enum { re_execed = 0 };
 # define fork_or_rexec(argv)                xfork()
 # define bb_daemonize_or_rexec(flags, argv) bb_daemonize_or_rexec(flags)
 # define bb_daemonize(flags)                bb_daemonize_or_rexec(flags, bogus)
 #else
-  extern bool re_execed;
   /* Note: re_exec() and fork_or_rexec() do argv[0][0] |= 0x80 on NOMMU!
    * _Parent_ needs to undo it if it doesn't want to have argv[0] mangled.
    */
@@ -1008,25 +1005,11 @@ llist_t *llist_find_str(llist_t *first, const char *str) FAST_FUNC;
  *   llist_t *llist_add_to(llist_t *old_head, void *data)
  * etc does not result in smaller code... */
 
-/* start_stop_daemon and udhcpc are special - they want
- * to create pidfiles regardless of FEATURE_PIDFILE */
-#if ENABLE_FEATURE_PIDFILE || defined(WANT_PIDFILE)
-/* True only if we created pidfile which is *file*, not /dev/null etc */
-extern smallint wrote_pidfile;
-void write_pidfile(const char *path) FAST_FUNC;
-#define remove_pidfile(path) do { if (wrote_pidfile) unlink(path); } while (0)
-#else
-enum { wrote_pidfile = 0 };
-#define write_pidfile(path)  ((void)0)
-#define remove_pidfile(path) ((void)0)
-#endif
-
 enum {
 	LOGMODE_NONE = 0,
 	LOGMODE_STDIO = (1 << 0)
 };
 extern const char *msg_eol;
-extern smallint syslog_level;
 extern smallint logmode;
 extern int die_sleep;
 extern uint8_t xfunc_error_retval;
@@ -1103,7 +1086,6 @@ struct hwtype {
 	int   FAST_FUNC (*activate)(int fd);
 	int suppress_null_addr;
 };
-extern smallint interface_opt_a;
 int display_interfaces(char *ifname) FAST_FUNC;
 int in_ether(const char *bufp, struct sockaddr *sap) FAST_FUNC;
 #if ENABLE_FEATURE_HWIB
@@ -1488,7 +1470,6 @@ unsigned get_cpu_count(void) FAST_FUNC;
 char *percent_decode_in_place(char *str, int strict) FAST_FUNC;
 
 
-extern uint32_t *global_crc32_table;
 uint32_t *crc32_filltable(uint32_t *tbl256, int endian) FAST_FUNC;
 uint32_t crc32_block_endian1(uint32_t val, const void *buf, unsigned len, uint32_t *crc_table) FAST_FUNC;
 uint32_t crc32_block_endian0(uint32_t val, const void *buf, unsigned len, uint32_t *crc_table) FAST_FUNC;
@@ -1520,8 +1501,6 @@ void bb_progress_update(bb_progress_t *p,
 			uoff_t transferred,
 			uoff_t totalsize) FAST_FUNC;
 
-
-extern const char *applet_name;
 
 /* Some older linkers don't perform string merging, we used to have common strings
  * as global arrays to do it by hand. But:

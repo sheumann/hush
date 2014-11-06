@@ -17,7 +17,9 @@ COREUTILS_SRC = \
 	
 LIBBB_A_SRC = \
 	libbb/lineedit.c \
-	libbb/lineedptrhack.c \
+	libbb/lineedptrhack.c 
+
+LIBBB_B_SRC = \
 	libbb/appletlib.c \
 	libbb/getopt32.c \
 	libbb/error.retval.c \
@@ -36,7 +38,7 @@ LIBBB_A_SRC = \
 	libbb/bb.basename.c \
 	libbb/mempcpy.c 
 
-LIBBB_B_SRC = \
+LIBBB_C_SRC = \
 	libbb/perror.msg.c \
 	libbb/signal.names.c \
 	libbb/ptrtoglobals.c \
@@ -50,7 +52,9 @@ LIBBB_B_SRC = \
 	libbb/s.gethostname.c \
 	libbb/safe.poll.c \
 	libbb/parse.mode.c \
-	libbb/poll.c \
+	libbb/poll.c 
+
+LIBBB_D_SRC = \
 	libbb/xfuncs.printf.c \
 	libbb/xfuncs.c \
 	libbb/xgetcwd.c \
@@ -64,9 +68,23 @@ LIBBB_B_SRC = \
 	libbb/unicode.c \
 	libbb/vfork.and.run.c 
 	
-SRCS = $(MAIN_SRC) $(SHELL_OTHER_SRC) $(COREUTILS_SRC) $(LIBBB_A_SRC) $(LIBBB_B_SRC)
+SRCS = $(MAIN_SRC) $(SHELL_OTHER_SRC) $(COREUTILS_SRC) $(LIBBB_A_SRC) \
+	$(LIBBB_B_SRC) $(LIBBB_C_SRC) $(LIBBB_D_SRC)
 OBJS = $(SRCS:.c=.a)
 ROOT = $(MAIN_SRC:.c=.root)
+
+SHELL_OTHER_SEG = -SSHELLOTHER
+COREUTILS_SEG = -SCOREUTILS_
+LIBBB_A_SEG = -SLIBBB_A___
+LIBBB_C_SEG = -SLIBBB_C___
+# We need more separate segments in debug mode because the code is bigger.
+.IF $(DEBUG)
+LIBBB_B_SEG = -SLIBBB_B___
+LIBBB_D_SEG = -SLIBBB_D___
+.ELSE
+LIBBB_B_SEG = -SLIBBB_A___
+LIBBB_D_SEG = -SLIBBB_C___
+.END
 
 INCLUDES = -I include -I shell -I libbb
 DEFINES = -Dhush_main=main -DNDEBUG
@@ -79,11 +97,12 @@ DEFINES += -DF_SETFD=-1 -DFD_CLOEXEC=-1
 # optimize bit 3 set (no stack repair code).
 # Optimize bit 6 breaks some standard-compliant varargs code,
 # and bits 0, 4, and 5 have known bugs.  Disable for now.
-OCC_FLAGS = -i -w -a0 -O8
+CFLAGS = -i -w -a0 -O8
 STACKSIZE = 20480
 
-# Add $(OCC_FLAGS) to CFLAGS on dmake
-CFLAGS = $(null, $(OCC_FLAGS))
+.IF $(DEBUG)
+CFLAGS += -g -DDEBUG
+.END
 
 PROG = hush
 
@@ -93,10 +112,12 @@ $(PROG): $(OBJS)
 %.a: %.c
 	$(CC) $(INCLUDES) $(DEFINES) $(CFLAGS) -c $< -o $@ \
 		$(eq,$<,$(MAIN_SRC) -s$(STACKSIZE) -r) \
-		$(!eq,$(SHELL_OTHER_SRC:s/$<//),$(SHELL_OTHER_SRC) -SSHELLOTHER) \
-		$(!eq,$(COREUTILS_SRC:s/$<//),$(COREUTILS_SRC) -SCOREUTILS_) \
-		$(!eq,$(LIBBB_A_SRC:s/$<//),$(LIBBB_A_SRC) -SLIBBB_A___) \
-		$(!eq,$(LIBBB_B_SRC:s/$<//),$(LIBBB_B_SRC) -SLIBBB_B___) 
+		$(!eq,$(SHELL_OTHER_SRC:s/$<//),$(SHELL_OTHER_SRC) $(SHELL_OTHER_SEG)) \
+		$(!eq,$(COREUTILS_SRC:s/$<//),$(COREUTILS_SRC) $(COREUTILS_SEG)) \
+		$(!eq,$(LIBBB_A_SRC:s/$<//),$(LIBBB_A_SRC) $(LIBBB_A_SEG)) \
+		$(!eq,$(LIBBB_B_SRC:s/$<//),$(LIBBB_B_SRC) $(LIBBB_B_SEG)) \
+		$(!eq,$(LIBBB_C_SRC:s/$<//),$(LIBBB_C_SRC) $(LIBBB_C_SEG)) \
+		$(!eq,$(LIBBB_D_SRC:s/$<//),$(LIBBB_D_SRC) $(LIBBB_D_SEG)) 
 
 .PHONY: clean
 clean:

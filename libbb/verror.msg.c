@@ -17,6 +17,8 @@ smallint syslog_level = LOG_ERR;
 smallint logmode = LOGMODE_STDIO;
 const char *msg_eol = "\n";
 
+extern const char *applet_name;
+
 void FAST_FUNC bb_verror_msg(const char *s, va_list p, const char* strerr)
 {
 	char *msg, *msg1;

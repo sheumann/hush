@@ -3417,6 +3417,10 @@ static int done_word(o_string *word, struct parse_context *ctx)
 }
 
 
+#if defined(__ORCAC__) && defined(DEBUG)
+segment "HUSH_B____";
+#endif
+
 /* Peek ahead in the input to find out if we have a "&n" construct,
  * as in "2>&1", that represents duplicating a file descriptor.
  * Return:
@@ -5638,7 +5642,7 @@ static char **expand_assignments(char **argv, int count)
 
 
 #ifdef __ORCAC__
-segment "HUSH_B____";
+segment "HUSH_C____";
 #endif
 
 static void switch_off_special_sigs(unsigned mask)
@@ -7501,6 +7505,10 @@ static void forked_child(void *args_struct) {
 # pragma databank 0
 #endif
 
+
+#if defined(__ORCAC__) && defined(DEBUG)
+segment "HUSH_D____";
+#endif
 
 /* NB: called by pseudo_exec, and therefore must not modify any
  * global data until exec/_exit (we can be a child after vfork!) */

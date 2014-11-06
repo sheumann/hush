@@ -11,8 +11,6 @@
  * unsupported: GLOB_BRACE GLOB_ALTDIRFUNC GLOB_MAGCHAR
  */
 
-#define DEBUG(x)
-
 #include "glob.h"
 
 #include <stdlib.h>
