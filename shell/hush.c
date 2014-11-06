@@ -1063,6 +1063,10 @@ static void real_debug_printf(const char *fmt, ...) {
 # define DEBUG_CLEAN 0
 #endif
 
+#ifdef __ORCAC__
+segment "HUSH_A____";
+#endif
+
 #if DEBUG_EXPAND
 static void debug_print_strings(const char *prefix, char **vv)
 {
@@ -5627,6 +5631,10 @@ static char **expand_assignments(char **argv, int count)
 	return p;
 }
 
+
+#ifdef __ORCAC__
+segment "HUSH_B____";
+#endif
 
 static void switch_off_special_sigs(unsigned mask)
 {
