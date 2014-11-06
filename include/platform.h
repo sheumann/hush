@@ -163,7 +163,7 @@ typedef unsigned long uintptr_t;
 
 /* ---- Size-saving "small" ints (arch-dependent) ----------- */
 
-#if defined(i386) || defined(__x86_64__) || defined(__mips__) || defined(__cris__) || defined(__ORCAC__)
+#if defined(i386) || defined(__x86_64__) || defined(__mips__) || defined(__cris__)
 /* add other arches which benefit from this... */
 typedef signed char smallint;
 typedef unsigned char smalluint;
