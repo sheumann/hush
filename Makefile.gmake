@@ -15,12 +15,10 @@ SRCS = \
 	libbb/perror.msg.c \
 	libbb/xatonum.c \
 	libbb/signal.names.c \
-	libbb/ptrtoglobals.c \
 	libbb/error.retval.c \
 	libbb/xfunc.die.c \
 	libbb/safe.strncpy.c \
 	libbb/lineedit.c \
-	libbb/lineedptrhack.c \
 	libbb/platform.c \
 	libbb/endofname.c \
 	libbb/signals.c \

@@ -831,20 +831,23 @@ struct globals {
 #endif
 	char user_input_buf[ENABLE_FEATURE_EDITING ? CONFIG_FEATURE_EDITING_MAX_LEN : 2];
 };
-#define G (*ptr_to_globals)
+static struct globals G;
 /* Not #defining name to G.name - this quickly gets unwieldy
  * (too many defines). Also, I actually prefer to see when a variable
  * is global, thus "G." prefix is a useful hint */
 #ifndef __GNO__
 # define INIT_G() do { \
-	SET_PTR_TO_GLOBALS(xzalloc(sizeof(G))); \
 	/* memset(&G.sa, 0, sizeof(G.sa)); */  \
 	sigfillset(&G.sa.sa_mask); \
 	G.sa.sa_flags = SA_RESTART; \
 } while (0)
 #else
-# define INIT_G() SET_PTR_TO_GLOBALS(xzalloc(sizeof(G)))
+# define INIT_G() 
 #endif
+
+/* Used by lineedit. */
+struct lineedit_statics;
+struct lineedit_statics *lineedit_ptr_to_statics;
 
 
 /* Function prototypes for builtins */

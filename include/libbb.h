@@ -1557,28 +1557,12 @@ extern const int const_int_1;
 /* Providing hard guarantee on minimum size (think of BUFSIZ == 128) */
 enum { COMMON_BUFSIZE = (BUFSIZ >= 256*sizeof(void*) ? BUFSIZ+1 : 256*sizeof(void*)) };
 extern char bb_common_bufsiz1[COMMON_BUFSIZE];
-/* This struct is deliberately not defined. */
-/* See docs/keep_data_small.txt */
-struct globals;
-/* '*const' ptr makes gcc optimize code much better.
- * Magic prevents ptr_to_globals from going into rodata.
- * If you want to assign a value, use SET_PTR_TO_GLOBALS(x) */
-extern struct globals *const ptr_to_globals;
 /* At least gcc 3.4.6 on mipsel system needs optimization barrier */
 #ifndef __ORCAC__
 # define barrier() __asm__ __volatile__("":::"memory")
 #else
 # define barrier()
 #endif
-#define SET_PTR_TO_GLOBALS(x) do { \
-	(*(struct globals**)&ptr_to_globals) = (void*)(x); \
-	barrier(); \
-} while (0)
-#define FREE_PTR_TO_GLOBALS() do { \
-	if (ENABLE_FEATURE_CLEAN_UP) { \
-		free(ptr_to_globals); \
-	} \
-} while (0)
 
 /* You can change LIBBB_DEFAULT_LOGIN_SHELL, but don't use it,
  * use bb_default_login_shell and following defines.

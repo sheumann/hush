@@ -16,8 +16,7 @@ COREUTILS_SRC = \
 	coreutils/test.ptr.hack.c
 	
 LIBBB_A_SRC = \
-	libbb/lineedit.c \
-	libbb/lineedptrhack.c 
+	libbb/lineedit.c 
 
 LIBBB_B_SRC = \
 	libbb/appletlib.c \
@@ -41,7 +40,6 @@ LIBBB_B_SRC = \
 LIBBB_C_SRC = \
 	libbb/perror.msg.c \
 	libbb/signal.names.c \
-	libbb/ptrtoglobals.c \
 	libbb/safe.strncpy.c \
 	libbb/platform.c \
 	libbb/signals.c \
