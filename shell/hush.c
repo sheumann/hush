@@ -6097,8 +6097,7 @@ static int process_command_subs(o_string *dest, const char *s)
 	FILE *fp;
 	struct in_str pipe_str;
 	pid_t pid;
-	wait_status_t status;
-	int ch, eol_cnt;
+	int status, ch, eol_cnt;
 
 	fp = generate_stream_from_string(s, &pid);
 
@@ -6894,7 +6893,7 @@ static void delete_finished_bg_job(struct pipe *pi)
 static int checkjobs(struct pipe *fg_pipe)
 {
 	int attributes;
-	wait_status_t status;
+	int status;
 #if ENABLE_HUSH_JOB
 	struct pipe *pi;
 #endif
@@ -9339,7 +9338,7 @@ static int FAST_FUNC builtin_unset(char **argv)
 static int FAST_FUNC builtin_wait(char **argv)
 {
 	int ret = EXIT_SUCCESS;
-	wait_status_t status;
+	int status;
 
 	argv = skip_dash_dash(argv);
 	if (argv[0] == NULL) {

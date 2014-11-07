@@ -64,7 +64,8 @@ LIBBB_D_SRC = \
 	libbb/time.c \
 	libbb/xrealloc.vec.c \
 	libbb/unicode.c \
-	libbb/vfork.and.run.c 
+	libbb/vfork.and.run.c \
+	libbb/waitpid.emul.c
 	
 SRCS = $(MAIN_SRC) $(SHELL_OTHER_SRC) $(COREUTILS_SRC) $(LIBBB_A_SRC) \
 	$(LIBBB_B_SRC) $(LIBBB_C_SRC) $(LIBBB_D_SRC)

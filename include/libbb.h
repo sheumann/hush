@@ -885,7 +885,7 @@ pid_t xfork(void) FAST_FUNC;
 pid_t spawn(char **argv) FAST_FUNC;
 pid_t xspawn(char **argv) FAST_FUNC;
 
-pid_t safe_waitpid(pid_t pid, wait_status_t *wstat, int options) FAST_FUNC;
+pid_t safe_waitpid(pid_t pid, int *wstat, int options) FAST_FUNC;
 /* wait4pid: unlike waitpid, waits ONLY for one process.
  * Returns sig + 0x180 if child is killed by signal.
  * It's safe to pass negative 'pids' from failed [v]fork -

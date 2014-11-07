@@ -504,9 +504,10 @@ typedef unsigned long long sigmask_t;
 
 #ifdef __GNO__
 # include <sys/wait.h>
-typedef union wait wait_status_t;
-#else
-typedef int wait_status_t;
+pid_t waitpid_emul (pid_t pid, int *stat_loc, int options);
+pid_t wait_emul (int *stat_loc);
+# define wait(stat_loc) wait_emul(stat_loc)
+# define waitpid(pid, stat_loc, options) waitpid_emul((pid), (stat_loc), (options))
 #endif
 
 #endif

@@ -284,7 +284,7 @@ int FAST_FUNC tcsetattr_stdin_TCSANOW(const struct termios *tp)
 }
 #endif
 
-pid_t FAST_FUNC safe_waitpid(pid_t pid, wait_status_t *wstat, int options)
+pid_t FAST_FUNC safe_waitpid(pid_t pid, int *wstat, int options)
 {
 	pid_t r;
 
