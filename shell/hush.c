@@ -745,6 +745,14 @@ struct globals {
 	pid_t root_pid;
 	pid_t root_ppid;
 	pid_t last_bg_pid;
+#ifdef __GNO__
+	/* Pid of the hush instance that was exec'd closest to us in the
+	 * process tree.  We're running in this pid's memory space, even 
+	 * if we've forked.  Used to determine if parent should be signaled
+	 * to resume when we terminate or exec.
+	 */
+	pid_t last_execed_pid;
+#endif
 #if ENABLE_HUSH_RANDOM_SUPPORT
 	random_t random_gen;
 #endif
@@ -842,7 +850,9 @@ static struct globals G;
 	G.sa.sa_flags = SA_RESTART; \
 } while (0)
 #else
-# define INIT_G() 
+# define INIT_G() do { \
+	G.last_execed_pid = getpid(); \
+} while (0)
 #endif
 
 /* Used by lineedit. */
@@ -1331,6 +1341,19 @@ static void restore_G_args(save_arg_t *sv, char **argv)
 }
 
 
+/* Signal to the parent that it can resume executing after a fork,
+ * because the child is about to exec or terminate.
+ */
+int signal_parent_to_resume(void) {
+#ifdef __GNO__
+	if (getpid() != G.last_execed_pid) {
+		kill(getppid(), SIGUSR2);
+		return 1;
+	}
+#endif
+	return 0;
+}
+
 /* Basic theory of signal handling in shell
  * ========================================
  * This does not describe what hush does, rather, it is current understanding
@@ -1564,8 +1587,10 @@ static void sigexit(int sig)
 	}
 
 	/* Not a signal, just exit */
-	if (sig <= 0)
+	if (sig <= 0) {
+		signal_parent_to_resume();
 		_exit(- sig);
+	}
 
 	kill_myself_with_sig(sig); /* does not return */
 }
@@ -5848,12 +5873,13 @@ static void re_execute_shell(char ***to_free, const char *s,
 	/* Don't propagate SIG_IGN to the child */
 	if (SPECIAL_JOBSTOP_SIGS != 0)
 		switch_off_special_sigs(G.special_sig_mask & SPECIAL_JOBSTOP_SIGS);
+	signal_parent_to_resume();
 	execve(bb_busybox_exec_path, argv, pp);
 	/* Fallback. Useful for init=/bin/hush usage etc */
 	if (argv[0][0] == '/')
 		execve(argv[0], argv, pp);
-	xfunc_error_retval = 127;
-	bb_error_msg_and_die("can't re-execute the shell");
+	bb_perror_msg("can't re-execute the shell");
+	_exit(127); /* bash compat */
 }
 #endif  /* !BB_MMU */
 
@@ -6040,6 +6066,7 @@ static void xforked_child(void *args_struct) {
 	) {
 		static const char *const argv[] = { NULL, NULL };
 		builtin_trap((char**)argv);
+		signal_parent_to_resume();
 		exit(0); /* not _exit() - we need to fflush */
 	}
 # if BB_MMU
@@ -6198,8 +6225,10 @@ static void xvforked_child(void *grandchild_args) {
 #else
 	pid = xvfork_and_run(xforked_grandchild, grandchild_args);
 #endif
-	if (pid != 0)
+	if (pid != 0) {
+		signal_parent_to_resume();
 		_exit(0);
+	}
 	xforked_grandchild(grandchild_args);  // Only get here in BB_MMU case
 }
 
@@ -6574,6 +6603,7 @@ static void execvp_or_die(char **argv)
 	/* Don't propagate SIG_IGN to the child */
 	if (SPECIAL_JOBSTOP_SIGS != 0)
 		switch_off_special_sigs(G.special_sig_mask & SPECIAL_JOBSTOP_SIGS);
+	signal_parent_to_resume();
 	execvp(argv[0], argv);
 	bb_perror_msg("can't execute '%s'", argv[0]);
 	_exit(127); /* bash compat */
@@ -6638,6 +6668,7 @@ static NOINLINE void pseudo_exec_argv(nommu_save_t *nommu_save,
 		 * expand_assignments(): think about ... | var=`sleep 1` | ...
 		 */
 		free_strings(new_env);
+		signal_parent_to_resume();
 		_exit(EXIT_SUCCESS);
 	}
 
@@ -6761,6 +6792,7 @@ static void pseudo_exec(nommu_save_t *nommu_save,
 
 	/* Case when we are here: ... | >file */
 	debug_printf_exec(("pseudo_exec'ed null command\n"));
+	signal_parent_to_resume();
 	_exit(EXIT_SUCCESS);
 }
 
@@ -7499,8 +7531,10 @@ static void forked_child(void *args_struct) {
 		close(args->pipefds_p->rd);
 	/* Like bash, explicit redirects override pipes,
 	 * and the pipe fd is available for dup'ing. */
-	if (setup_redirects(*args->command_p, NULL))
+	if (setup_redirects(*args->command_p, NULL)) {
+		signal_parent_to_resume();
 		_exit(1);
+	}
 
 	/* Stores to nommu_save list of env vars putenv'ed
 	 * (NOMMU, on MMU we don't need that) */
@@ -8417,6 +8451,15 @@ int hush_main(int argc, char **argv)
 	/* We have interactiveness code disabled */
 	install_special_sighandlers();
 #endif
+
+#ifdef __GNO__
+	/* Don't terminate on SIGUSR2, because we'll be using it to signal when
+	 * it's safe to resume after a fork.  We don't need to actually do any 
+	 * other handling for it, so just set it to SIG_IGN.
+	 */
+	install_sighandler(SIGUSR2, SIG_IGN);
+#endif
+
 	/* bash:
 	 * if interactive but not a login shell, sources ~/.bashrc
 	 * (--norc turns this off, --rcfile <file> overrides)

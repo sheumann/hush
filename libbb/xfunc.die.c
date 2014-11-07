@@ -19,6 +19,8 @@ jmp_buf die_jmp;
 
 void FAST_FUNC xfunc_die(void)
 {
+	int forked;
+
 	if (die_sleep) {
 		if ((ENABLE_FEATURE_PREFER_APPLETS || ENABLE_HUSH)
 		 && die_sleep < 0
@@ -36,5 +38,9 @@ void FAST_FUNC xfunc_die(void)
 		}
 		sleep(die_sleep);
 	}
-	exit(xfunc_error_retval);
+	forked = signal_parent_to_resume();
+	if (!forked) 
+		exit(xfunc_error_retval);
+	else
+		_exit(xfunc_error_retval);
 }

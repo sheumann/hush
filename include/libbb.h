@@ -868,22 +868,6 @@ int file_is_executable(const char *name) FAST_FUNC;
 char *find_executable(const char *filename, char **PATHp) FAST_FUNC;
 int executable_exists(const char *filename) FAST_FUNC;
 
-/* BB_EXECxx always execs (it's not doing NOFORK/NOEXEC stuff),
- * but it may exec busybox and call applet instead of searching PATH.
- */
-#if ENABLE_FEATURE_PREFER_APPLETS
-int BB_EXECVP(const char *file, char *const argv[]) FAST_FUNC;
-#define BB_EXECLP(prog,cmd,...) \
-	do { \
-		if (find_applet_by_name(prog) >= 0) \
-			execlp(bb_busybox_exec_path, cmd, __VA_ARGS__); \
-		execlp(prog, cmd, __VA_ARGS__); \
-	} while (0)
-#else
-#define BB_EXECVP(prog,cmd)     execvp(prog,cmd)
-#endif
-int BB_EXECVP_or_die(char **argv) NORETURN FAST_FUNC;
-
 /* xvfork() can't be a _function_, return after vfork mangles stack
  * in the parent. It must be a macro. */
 #define xvfork() \
@@ -1714,6 +1698,12 @@ static ALWAYS_INLINE unsigned char bb_ascii_tolower(unsigned char a)
 #define isgraph_asciionly(a) ((unsigned)((a) - 0x21) <= 0x7e - 0x21)
 #define isprint_asciionly(a) ((unsigned)((a) - 0x20) <= 0x7e - 0x20)
 #endif /* !defined(__ORCAC__) */
+
+
+/* Signal to the parent that it can resume executing after a fork,
+ * because the child is about to exec or terminate.
+ */
+int signal_parent_to_resume(void);
 
 
 /* Simple unit-testing framework */
