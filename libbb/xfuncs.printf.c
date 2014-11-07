@@ -213,7 +213,7 @@ void FAST_FUNC xpipe(int filedes[2])
 void FAST_FUNC xdup2(int from, int to)
 {
 	if (dup2(from, to) != to)
-		bb_perror_msg_and_die("can't duplicate file descriptor");
+		bb_perror_msg_and_die("can't duplicate file descriptor %i to %i", from, to);
 }
 
 // "Renumber" opened fd

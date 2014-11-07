@@ -6231,7 +6231,7 @@ static int setup_redirects(struct command *prog, int *squirrel)
 	for (redir = prog->redirects; redir; redir = redir->next) {
 		if (redir->rd_type == REDIRECT_HEREDOC2) {
 			/* rd_fd<<HERE case */
-			if (squirrel && redir->rd_fd < 3
+			if (squirrel && redir->rd_fd <= STDERR_FILENO
 			 && squirrel[redir->rd_fd] < 0
 			) {
 				squirrel[redir->rd_fd] = dup(redir->rd_fd);
@@ -6269,7 +6269,7 @@ static int setup_redirects(struct command *prog, int *squirrel)
 		}
 
 		if (openfd != redir->rd_fd) {
-			if (squirrel && redir->rd_fd < 3
+			if (squirrel && redir->rd_fd <= STDERR_FILENO
 			 && squirrel[redir->rd_fd] < 0
 			) {
 				squirrel[redir->rd_fd] = dup(redir->rd_fd);
@@ -6290,7 +6290,7 @@ static int setup_redirects(struct command *prog, int *squirrel)
 static void restore_redirects(int squirrel[])
 {
 	int i, fd;
-	for (i = 0; i < 3; i++) {
+	for (i = STDIN_FILENO; i <= STDERR_FILENO; i++) {
 		fd = squirrel[i];
 		if (fd != -1) {
 			/* We simply die on error */
@@ -7085,7 +7085,7 @@ static int checkjobs_and_fg_shell(struct pipe *fg_pipe)
 static int redirect_and_varexp_helper(char ***new_env_p,
 		struct variable **old_vars_p,
 		struct command *command,
-		int squirrel[3],
+		int squirrel[STDERR_FILENO+1],
 		char **argv_expanded)
 {
 	/* setup_redirects acts on file descriptors, not FILEs.
@@ -7124,8 +7124,12 @@ static NOINLINE int run_pipe(struct pipe *pi)
 	char **argv_expanded;
 	char **argv;
 	/* it is not always needed, but we aim to smaller code */
-	int squirrel[] = { -1, -1, -1 };
+	int squirrel[STDERR_FILENO + 1];
 	int rcode;
+
+	squirrel[STDIN_FILENO] = -1;
+	squirrel[STDOUT_FILENO] = -1;
+	squirrel[STDERR_FILENO] = -1;
 
 	debug_printf_exec(("run_pipe start: members:%d\n", pi->num_cmds));
 	debug_enter();
@@ -7356,7 +7360,7 @@ static NOINLINE int run_pipe(struct pipe *pi)
 
 	/* Going to fork a child per each pipe member */
 	pi->alive_cmds = 0;
-	next_infd = 0;
+	next_infd = STDIN_FILENO;
 
 	cmd_no = 0;
 	while (cmd_no < pi->num_cmds) {
@@ -7389,8 +7393,8 @@ static NOINLINE int run_pipe(struct pipe *pi)
 		}
 
 		/* pipes are inserted between pairs of commands */
-		pipefds.rd = 0;
-		pipefds.wr = 1;
+		pipefds.rd = STDIN_FILENO;
+		pipefds.wr = STDOUT_FILENO;
 		if (cmd_no < pi->num_cmds)
 			xpiped_pair(pipefds);
 
@@ -7484,14 +7488,14 @@ static void forked_child(void *args_struct) {
 	if ((*args->pi_p)->alive_cmds == 0 && (*args->pi_p)->followup == PIPE_BG) {
 		/* 1st cmd in backgrounded pipe
 		 * should have its stdin /dev/null'ed */
-		close(0);
+		close(STDIN_FILENO);
 		if (open(bb_dev_null, O_RDONLY))
 			xopen("/", O_RDONLY);
 	} else {
-		xmove_fd(*args->next_infd_p, 0);
+		xmove_fd(*args->next_infd_p, STDIN_FILENO);
 	}
-	xmove_fd(args->pipefds_p->wr, 1);
-	if (args->pipefds_p->rd > 1)
+	xmove_fd(args->pipefds_p->wr, STDOUT_FILENO);
+	if (args->pipefds_p->rd > STDOUT_FILENO)
 		close(args->pipefds_p->rd);
 	/* Like bash, explicit redirects override pipes,
 	 * and the pipe fd is available for dup'ing. */
