@@ -19,7 +19,7 @@ char *get_exec_path(void);
 #include <gsos.h>
 #include <orca.h>
 
-/* Prefix 1 is set to the directory containing the executable at launch.
+/* Prefix 9 is set to the directory containing the executable at launch.
  * We append the result of a GetName call to this to get the full pathname.
  */
 char *get_exec_path(void) {
@@ -32,7 +32,7 @@ char *get_exec_path(void) {
 	if (prefix == NULL)
 		return NULL;
 	prefixRec.pCount = 2;
-	prefixRec.prefixNum = 1; /* Info for prefix 1 */
+	prefixRec.prefixNum = 9; /* Info for prefix 9 */
 	prefixRec.buffer.getPrefix = prefix;
 	prefix->bufSize = sizeof(ResultBuf255);
 	
