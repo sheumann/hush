@@ -859,6 +859,8 @@ static struct globals G;
 struct lineedit_statics;
 struct lineedit_statics *lineedit_ptr_to_statics;
 
+static char *hush_exec_path;
+
 
 /* Function prototypes for builtins */
 static int builtin_cd(char **argv) FAST_FUNC;
@@ -5874,7 +5876,7 @@ static void re_execute_shell(char ***to_free, const char *s,
 	if (SPECIAL_JOBSTOP_SIGS != 0)
 		switch_off_special_sigs(G.special_sig_mask & SPECIAL_JOBSTOP_SIGS);
 	signal_parent_to_resume();
-	execve(bb_busybox_exec_path, argv, pp);
+	execve(hush_exec_path, argv, pp);
 	/* Fallback. Useful for init=/bin/hush usage etc */
 	if (argv[0][0] == '/')
 		execve(argv[0], argv, pp);
@@ -6738,7 +6740,7 @@ static NOINLINE void pseudo_exec_argv(nommu_save_t *nommu_save,
 			/* Don't propagate SIG_IGN to the child */
 			if (SPECIAL_JOBSTOP_SIGS != 0)
 				switch_off_special_sigs(G.special_sig_mask & SPECIAL_JOBSTOP_SIGS);
-			execv(bb_busybox_exec_path, argv);
+			execv(hush_exec_path, argv);
 			/* If they called chroot or otherwise made the binary no longer
 			 * executable, fall through */
 		}
@@ -8031,6 +8033,7 @@ int hush_main(int argc, char **argv)
 	struct variable *shell_ver;
 
 	INIT_G();
+	hush_exec_path = get_exec_path();
 	if (EXIT_SUCCESS != 0) /* if EXIT_SUCCESS == 0, it is already done */
 		G.last_exitcode = EXIT_SUCCESS;
 #if ENABLE_HUSH_FAST

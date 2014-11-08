@@ -1520,7 +1520,6 @@ extern const char bb_path_wtmp_file[] ALIGN1;
 #else
 # define bb_dev_null ".null"
 #endif
-extern const char bb_busybox_exec_path[] ALIGN1;
 
 extern const int const_int_0;
 extern const int const_int_1;
@@ -1639,6 +1638,8 @@ static ALWAYS_INLINE unsigned char bb_ascii_tolower(unsigned char a)
  */
 int signal_parent_to_resume(void);
 
+/* Get path of current executable */
+char *get_exec_path(void);
 
 /* Simple unit-testing framework */
 
