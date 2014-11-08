@@ -7520,7 +7520,7 @@ static void forked_child(void *args_struct) {
 		/* 1st cmd in backgrounded pipe
 		 * should have its stdin /dev/null'ed */
 		close(STDIN_FILENO);
-		if (open(bb_dev_null, O_RDONLY))
+		if (open(bb_dev_null, O_RDONLY) != STDIN_FILENO)
 			xopen("/", O_RDONLY);
 	} else {
 		xmove_fd(*args->next_infd_p, STDIN_FILENO);

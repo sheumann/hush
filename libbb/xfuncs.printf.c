@@ -127,7 +127,10 @@ int FAST_FUNC xopen3(const char *pathname, int flags, int mode)
 {
 	int ret;
 
-	ret = open(pathname, flags, mode);
+	if (flags & O_CREAT)
+		ret = open(pathname, flags, mode);
+	else
+		ret = open(pathname, flags);
 	if (ret < 0) {
 		bb_perror_msg_and_die("can't open '%s'", pathname);
 	}
@@ -212,7 +215,7 @@ void FAST_FUNC xpipe(int filedes[2])
 
 void FAST_FUNC xdup2(int from, int to)
 {
-	if (dup2(from, to) != to)
+	if (dup2(from, to) < 0)
 		bb_perror_msg_and_die("can't duplicate file descriptor %i to %i", from, to);
 }
 

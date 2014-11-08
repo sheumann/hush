@@ -1515,24 +1515,12 @@ extern const char bb_hexdigits_upcase[] ALIGN1;
 
 extern const char bb_path_wtmp_file[] ALIGN1;
 
-/* Busybox mount uses either /proc/mounts or /etc/mtab to
- * get the list of currently mounted filesystems */
-#define bb_path_mtab_file IF_FEATURE_MTAB_SUPPORT("/etc/mtab")IF_NOT_FEATURE_MTAB_SUPPORT("/proc/mounts")
-
-#define bb_path_passwd_file  _PATH_PASSWD
-#define bb_path_group_file   _PATH_GROUP
-#define bb_path_shadow_file  _PATH_SHADOW
-#define bb_path_gshadow_file _PATH_GSHADOW
-
-#define bb_path_motd_file "/etc/motd"
-
-#define bb_dev_null "/dev/null"
+#ifndef __GNO__
+# define bb_dev_null "/dev/null"
+#else
+# define bb_dev_null ".null"
+#endif
 extern const char bb_busybox_exec_path[] ALIGN1;
-/* util-linux manpage says /sbin:/bin:/usr/sbin:/usr/bin,
- * but I want to save a few bytes here */
-extern const char bb_PATH_root_path[] ALIGN1; /* "PATH=/sbin:/usr/sbin:/bin:/usr/bin" */
-#define bb_default_root_path (bb_PATH_root_path + sizeof("PATH"))
-#define bb_default_path      (bb_PATH_root_path + sizeof("PATH=/sbin:/usr/sbin"))
 
 extern const int const_int_0;
 extern const int const_int_1;
@@ -1553,60 +1541,6 @@ extern char bb_common_bufsiz1[COMMON_BUFSIZE];
  * If you change LIBBB_DEFAULT_LOGIN_SHELL,
  * don't forget to change increment constant. */
 #define LIBBB_DEFAULT_LOGIN_SHELL  "-/bin/sh"
-extern const char bb_default_login_shell[] ALIGN1;
-/* "/bin/sh" */
-#define DEFAULT_SHELL              (bb_default_login_shell+1)
-/* "sh" */
-#define DEFAULT_SHELL_SHORT_NAME   (bb_default_login_shell+6)
-
-/* The following devices are the same on all systems.  */
-#define CURRENT_TTY "/dev/tty"
-#define DEV_CONSOLE "/dev/console"
-
-#if defined(__FreeBSD_kernel__)
-# define CURRENT_VC CURRENT_TTY
-# define VC_1 "/dev/ttyv0"
-# define VC_2 "/dev/ttyv1"
-# define VC_3 "/dev/ttyv2"
-# define VC_4 "/dev/ttyv3"
-# define VC_5 "/dev/ttyv4"
-# define VC_FORMAT "/dev/ttyv%d"
-#elif defined(__GNU__)
-# define CURRENT_VC CURRENT_TTY
-# define VC_1 "/dev/tty1"
-# define VC_2 "/dev/tty2"
-# define VC_3 "/dev/tty3"
-# define VC_4 "/dev/tty4"
-# define VC_5 "/dev/tty5"
-# define VC_FORMAT "/dev/tty%d"
-#elif ENABLE_FEATURE_DEVFS
-/*Linux, obsolete devfs names */
-# define CURRENT_VC "/dev/vc/0"
-# define VC_1 "/dev/vc/1"
-# define VC_2 "/dev/vc/2"
-# define VC_3 "/dev/vc/3"
-# define VC_4 "/dev/vc/4"
-# define VC_5 "/dev/vc/5"
-# define VC_FORMAT "/dev/vc/%d"
-# define LOOP_FORMAT "/dev/loop/%u"
-# define LOOP_NAMESIZE (sizeof("/dev/loop/") + sizeof(int)*3 + 1)
-# define LOOP_NAME "/dev/loop/"
-# define FB_0 "/dev/fb/0"
-#else
-/*Linux, normal names */
-# define CURRENT_VC "/dev/tty0"
-# define VC_1 "/dev/tty1"
-# define VC_2 "/dev/tty2"
-# define VC_3 "/dev/tty3"
-# define VC_4 "/dev/tty4"
-# define VC_5 "/dev/tty5"
-# define VC_FORMAT "/dev/tty%d"
-# define LOOP_FORMAT "/dev/loop%u"
-# define LOOP_NAMESIZE (sizeof("/dev/loop") + sizeof(int)*3 + 1)
-# define LOOP_NAME "/dev/loop"
-# define FB_0 "/dev/fb0"
-#endif
-
 
 #define ARRAY_SIZE(x) ((size_t)(sizeof(x) / sizeof((x)[0])))
 /* ORCA/C will sometimes barf on the expression in ARRAY_SIZE, depending on the element type
