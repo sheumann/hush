@@ -15,7 +15,7 @@
 smallint syslog_level = LOG_ERR;
 #endif
 smallint logmode = LOGMODE_STDIO;
-const char *msg_eol = "\n";
+const char *msg_eol = NEWLINE_STR;
 
 extern const char *applet_name;
 
@@ -47,7 +47,7 @@ void FAST_FUNC bb_verror_msg(const char *s, va_list p, const char* strerr)
 	/* +3 is for ": " before strerr and for terminating NUL */
 	msg1 = realloc(msg, applet_len + used + strerr_len + msgeol_len + 3);
 	if (!msg1) {
-		msg[used++] = '\n'; /* overwrites NUL */
+		msg[used++] = NEWLINE_CHAR; /* overwrites NUL */
 		applet_len = 0;
 	} else {
 		msg = msg1;

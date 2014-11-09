@@ -228,6 +228,10 @@ off_t FAST_FUNC fdlength(int fd)
 
 int FAST_FUNC bb_putchar_stderr(char ch)
 {
+#ifdef __GNO__
+	if (ch == '\n')
+		ch = '\r';
+#endif
 	return write(STDERR_FILENO, &ch, 1);
 }
 

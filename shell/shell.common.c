@@ -227,7 +227,7 @@ shell_builtin_read(void FAST_FUNC (*setvar)(const char *name, const char *val),
 			continue;
 		if (backslash) {
 			backslash = 0;
-			if (c != '\n')
+			if (!IS_NEWLINE(c))
 				goto put;
 			continue;
 		}
@@ -235,7 +235,7 @@ shell_builtin_read(void FAST_FUNC (*setvar)(const char *name, const char *val),
 			backslash = 1;
 			continue;
 		}
-		if (c == '\n')
+		if (IS_NEWLINE(c))
 			break;
 
 		/* $IFS splitting. NOT done if we run "read"

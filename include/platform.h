@@ -510,4 +510,14 @@ pid_t wait_emul (int *stat_loc);
 # define waitpid(pid, stat_loc, options) waitpid_emul((pid), (stat_loc), (options))
 #endif
 
+#ifdef __GNO__
+# define NEWLINE_CHAR '\r'
+# define NEWLINE_STR "\r"
+# define IS_NEWLINE(ch) ((ch) == '\r' || (ch) == '\n')
+#else
+# define NEWLINE_CHAR '\n'
+# define NEWLINE_STR "\n"
+# define IS_NEWLINE(ch) ((ch) == '\n')
+#endif
+
 #endif

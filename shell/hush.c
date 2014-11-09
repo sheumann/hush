@@ -2196,7 +2196,7 @@ static void get_user_input(struct in_str *i)
 # else
 	do {
 		G.flag_SIGINT = 0;
-		if (i->last_char == '\0' || i->last_char == '\n') {
+		if (i->last_char == '\0' || IS_NEWLINE(i->last_char)) {
 			/* Why check_and_run_traps here? Try this interactively:
 			 * $ trap 'echo INT' INT; (sleep 2; kill -INT $$) &
 			 * $ <[enter], repeatedly...>
@@ -3618,7 +3618,7 @@ static char *fetch_till_str(o_string *as_string,
 		ch = i_getch(input);
 		if (ch != EOF)
 			nommu_addchr(as_string, ch);
-		if ((ch == '\n' || ch == EOF)
+		if ((IS_NEWLINE(ch) || ch == EOF)
 		 && ((heredoc_flags & HEREDOC_QUOTED) || prev != '\\')
 		) {
 			if (strcmp(heredoc.data + past_EOL, word) == 0) {
@@ -3626,7 +3626,7 @@ static char *fetch_till_str(o_string *as_string,
 				debug_printf_parse(("parsed heredoc '%s'\n", heredoc.data));
 				return heredoc.data;
 			}
-			while (ch == '\n') {
+			while (IS_NEWLINE(ch)) {
 				o_addchr(&heredoc, ch);
 				prev = ch;
  jump_in:
@@ -3749,7 +3749,7 @@ static int parse_group(o_string *dest, struct parse_context *ctx,
 		nommu_addchr(&ctx->as_string, ch);
 		do
 			ch = i_getch(input);
-		while (ch == ' ' || ch == '\t' || ch == '\n');
+		while (ch == ' ' || ch == '\t' || IS_NEWLINE(ch));
 		if (ch != '{') {
 			syntax_error_unexpected_ch(ch);
 			return 1;
@@ -3782,7 +3782,7 @@ static int parse_group(o_string *dest, struct parse_context *ctx,
 	} else {
 		/* bash does not allow "{echo...", requires whitespace */
 		ch = i_getch(input);
-		if (ch != ' ' && ch != '\t' && ch != '\n') {
+		if (ch != ' ' && ch != '\t' && !IS_NEWLINE(ch)) {
 			syntax_error_unexpected_ch(ch);
 			return 1;
 		}
@@ -4245,7 +4245,7 @@ static int encode_string(o_string *as_string,
 		return 0; /* error */
 	}
 	next = '\0';
-	if (ch != '\n') {
+	if (!IS_NEWLINE(ch)) {
 		next = i_peek(input);
 	}
 	debug_printf_parse(("\" ch=%c (%d) escape=%d\n",
@@ -4263,9 +4263,9 @@ static int encode_string(o_string *as_string,
 		 * NB: in (unquoted) heredoc, above does not apply to ",
 		 * therefore we check for it by "next == dquote_end" cond.
 		 */
-		if (next == dquote_end || strchr("$`\\\n", next)) {
+		if (next == dquote_end || strchr("$`\\\n" NEWLINE_STR, next)) {
 			ch = i_getch(input); /* eat next */
-			if (ch == '\n')
+			if (IS_NEWLINE(ch))
 				goto again; /* skip \<newline> */
 		} /* else: ch remains == '\\', and we double it below: */
 		o_addqchr(dest, ch); /* \c if c is a glob char, else just c */
@@ -4388,7 +4388,7 @@ static struct pipe *parse_stream(char **pstring,
 		nommu_addchr(&ctx.as_string, ch);
 
 		next = '\0';
-		if (ch != '\n')
+		if (!IS_NEWLINE(ch))
 			next = i_peek(input);
 
 		is_special = "{}<>;&|()#'" /* special outside of "str" */
@@ -4428,7 +4428,7 @@ static struct pipe *parse_stream(char **pstring,
 			if (done_word(&dest, &ctx)) {
 				goto parse_error;
 			}
-			if (ch == '\n') {
+			if (IS_NEWLINE(ch)) {
 				/* Is this a case when newline is simply ignored?
 				 * Some examples:
 				 * "cmd | <newline> cmd ..."
@@ -4597,7 +4597,7 @@ static struct pipe *parse_stream(char **pstring,
 				/* skip "#comment" */
 				while (1) {
 					ch = i_peek(input);
-					if (ch == EOF || ch == '\n')
+					if (ch == EOF || IS_NEWLINE(ch))
 						break;
 					i_getch(input);
 					/* note: we do not add it to &ctx.as_string */
@@ -4607,7 +4607,7 @@ static struct pipe *parse_stream(char **pstring,
 			}
 			break;
 		case '\\':
-			if (next == '\n') {
+			if (IS_NEWLINE(next)) {
 				/* It's "\<newline>" */
 #if !BB_MMU
 				/* Remove trailing '\' from ctx.as_string */
@@ -5918,7 +5918,7 @@ static void parse_and_run_stream(struct in_str *inp, int end_trigger)
 			if (pipe_list == ERR_PTR && end_trigger == ';') {
 				/* Discard cached input (rest of line) */
 				int ch = inp->last_char;
-				while (ch != EOF && ch != '\n') {
+				while (ch != EOF && !IS_NEWLINE(ch)) {
 					//bb_error_msg("Discarded:'%c'", ch);
 					ch = i_getch(inp);
 				}
@@ -6107,7 +6107,7 @@ static int process_command_subs(o_string *dest, const char *s)
 	setup_file_in_str(&pipe_str, fp);
 	eol_cnt = 0;
 	while ((ch = i_getch(&pipe_str)) != EOF) {
-		if (ch == '\n') {
+		if (IS_NEWLINE(ch)) {
 			eol_cnt++;
 			continue;
 		}

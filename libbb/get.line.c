@@ -24,7 +24,7 @@ char* FAST_FUNC bb_get_chunk_from_file(FILE *file, int *end)
 		linebuf[idx++] = (char) ch;
 		if (ch == '\0')
 			break;
-		if (end && ch == '\n')
+		if (end && IS_NEWLINE(ch))
 			break;
 	}
 	if (end)
@@ -55,7 +55,7 @@ char* FAST_FUNC xmalloc_fgetline(FILE *file)
 	int i;
 	char *c = bb_get_chunk_from_file(file, &i);
 
-	if (i && c[--i] == '\n')
+	if (i-- && IS_NEWLINE(c[i]))
 		c[i] = '\0';
 
 	return c;
@@ -138,7 +138,7 @@ static char* xmalloc_fgets_internal(FILE *file, int *sizep)
 		/* stupid. fgets knows the len, it should report it somehow */
 		len = strlen(&linebuf[idx]);
 		idx += len;
-		if (len != 0xff || linebuf[idx - 1] == '\n')
+		if (len != 0xff || IS_NEWLINE(linebuf[idx - 1]))
 			break;
 	}
 	*sizep = idx;
@@ -155,7 +155,7 @@ char* FAST_FUNC xmalloc_fgetline_fast(FILE *file)
 {
 	int sz;
 	char *r = xmalloc_fgets_internal(file, &sz);
-	if (r && r[sz - 1] == '\n')
+	if (r && IS_NEWLINE(r[sz - 1]))
 		r[--sz] = '\0';
 	return r; /* not xrealloc(r, sz + 1)! */
 }
@@ -173,7 +173,7 @@ char* FAST_FUNC xmalloc_fgetline(FILE *file)
 	char *r = xmalloc_fgets_internal(file, &sz);
 	if (!r)
 		return r;
-	if (r[sz - 1] == '\n')
+	if (IS_NEWLINE(r[sz - 1]))
 		r[--sz] = '\0';
 	return xrealloc(r, sz + 1);
 }

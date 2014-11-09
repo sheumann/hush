@@ -162,7 +162,7 @@ int echo_main(int argc UNUSED_PARAM, char **argv)
 	}
 
 	if (nflag) {
-		*out++ = '\n';
+		*out++ = NEWLINE_CHAR;
 	}
 
  do_write:
@@ -321,7 +321,7 @@ int echo_main(int argc, char **argv)
 
  newline_ret:
 	if (nflag) {
-		cur_io->iov_base = (char*)"\n";
+		cur_io->iov_base = (char*)NEWLINE_STR;
 		cur_io->iov_len = 1;
 		cur_io++;
 	}
