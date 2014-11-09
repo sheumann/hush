@@ -98,7 +98,7 @@ DEFINES += -DF_SETFD=-1 -DFD_CLOEXEC=-1
 # Optimize bit 6 breaks some standard-compliant varargs code,
 # and bits 0, 4, and 5 have known bugs.  Disable for now.
 CFLAGS = -i -w -a0 -O8
-STACKSIZE = 20480
+STACKSIZE = 8192
 
 .IF $(DEBUG)
 CFLAGS += -g -DDEBUG

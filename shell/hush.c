@@ -8034,6 +8034,9 @@ int hush_main(int argc, char **argv)
 
 	INIT_G();
 	hush_exec_path = get_exec_path();
+#ifdef __GNO__
+	environInit();
+#endif
 	if (EXIT_SUCCESS != 0) /* if EXIT_SUCCESS == 0, it is already done */
 		G.last_exitcode = EXIT_SUCCESS;
 #if ENABLE_HUSH_FAST
