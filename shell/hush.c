@@ -1356,6 +1356,43 @@ int signal_parent_to_resume(void) {
 	return 0;
 }
 
+
+#ifdef __GNO__
+#undef _exit
+
+#include <gsos.h>
+static QuitRecGS quitRec = {0, NULL, 0};
+
+/* _exit (contrary to its documentation) performs clean-up that's
+ * inappropriate for a forked child process (this usually results
+ * in corruption of the memory allocator state, and maybe other 
+ * problems), so we define our own version without this problem.
+ */
+void _exit_wrapper(int status) {
+	if (getpid() == G.last_execed_pid) {
+		// We're the root shell or one that's been exec'd...
+		// Call regular _exit()
+		_exit(status);
+	} else {
+		// We're a forked child. Just call QuitGS.  We do it in 
+		// assembly so we can push the return value on the stack.
+		while (1) {
+			asm {
+				lda status
+				pha
+				jsl 0xE100A8
+				dcw 0x2029	/* QuitGS */
+				dcl quitRec;
+				pla
+			}
+		}
+	}
+}
+
+#define _exit(s) _exit_wrapper(s)
+#endif
+
+
 /* Basic theory of signal handling in shell
  * ========================================
  * This does not describe what hush does, rather, it is current understanding

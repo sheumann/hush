@@ -1641,6 +1641,13 @@ int signal_parent_to_resume(void);
 /* Get path of current executable */
 char *get_exec_path(void);
 
+/* On GNO, we need to use this wrapper because _exit is broken when
+ * called from forked child processes. */
+#ifdef __GNO__
+void _exit_wrapper(int status) NORETURN;
+# define _exit(s) _exit_wrapper(s)
+#endif
+
 /* Simple unit-testing framework */
 
 typedef void (*bbunit_testfunc)(void);
