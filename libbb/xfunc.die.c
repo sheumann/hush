@@ -38,8 +38,7 @@ void FAST_FUNC xfunc_die(void)
 		}
 		sleep(die_sleep);
 	}
-	forked = signal_parent_to_resume();
-	if (!forked) 
+	if (!is_forked_child()) 
 		exit(xfunc_error_retval);
 	else
 		_exit(xfunc_error_retval);

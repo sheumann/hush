@@ -27,10 +27,23 @@ pid_t vfork_and_run(void (*fn)(void*) NORETURN, void *arg) {
 
 #else
 
+# include <signal.h>
+# include <gno/kvm.h>
+# include <orca.h>
+
 /* Turn off all ORCA/C stack repair code to avoid corruption. */
-#ifdef __ORCAC__
-# pragma optimize 72
-#endif
+# ifdef __ORCAC__
+#  pragma optimize 72
+# endif
+
+# pragma databank 1
+void fork_thunk(void (*fn)(void*) NORETURN, void *arg, long sigmask) {
+	sigsetmask(sigmask);
+	fn(arg);
+}
+# pragma databank 0
+
+const char * forked_child_name = "hush (forked)";
 
 pid_t vfork_and_run(void (*fn)(void*) NORETURN, void *arg) {
 	/* GNO's fork2 call will return immediately and allow the parent and 
@@ -39,31 +52,60 @@ pid_t vfork_and_run(void (*fn)(void*) NORETURN, void *arg) {
 	 * behavior like a traditional vfork() implementation, where the
 	 * parent blocks until the child terminates or execs.
 	 *
-	 * Our approach will be to have the child send SIGUSR2 to the parent
+	 * Our approach will be to have the child send SIGALRM to the parent
 	 * just before it terminates or execs, and block waiting for that here.
-	 * 
-	 * It's tempting to use waitpid().  That would have the advantage of 
-	 * catching cases where the child process terminates abruptly, but 
-	 * GNO's implementation of waitpid() is a wrapper around wait() and 
-	 * therefore is buggy: it may swallow the information about termination 
-	 * of other child processes (ones that forked earlier and have already 
-	 * exec'd), which we want to avoid.
+	 * We also set an alarm in case the child doesn't signal.
+	 *
+	 * When we get SIGALRM, we check the process tables to make sure the
+	 * child has actually finished or exec'd.  If not, we loop and try again.
+	 * We can't just rely on the fact that the child signaled us, because
+	 * it may still be running in libc's implementation of exec*.
 	 */
 	
 	long oldmask;
+	sig_t prev_alarm_sig;
 	pid_t pid;
+	kvmt *kvm_context;
+	struct pentry *proc_entry;
+	bool done = 0;
 	
 	/* Block all signals for now */
 	oldmask = sigblock(-1);
 	
-	pid = fork2((fn), 1024, 0, "hush (forked)", 2, (arg));
+	pid = fork2(fork_thunk, 1024, 0, forked_child_name, 
+				(sizeof(fn) + sizeof(arg) + sizeof(oldmask) + 1) / 2, 
+				fn, arg, oldmask);
+	if (pid < 0) 
+		goto ret;
 	
-	/* Now wait until we get SIGUSR2 */
-	sigpause(~sigmask(SIGUSR2));
+	prev_alarm_sig = signal(SIGALRM, SIG_IGN);
 	
-	/* Restore original signal mask */
+	while (!done) {
+		/* Set alarm. This is a backup in case the child dies without signaling us. */
+		alarm10(1);
+	
+		/* Wait until we get SIGALRM */
+		sigpause(~sigmask(SIGALRM));
+		
+		/* Check if the child is really dead or forked by inspecting
+		 * the kernel's process entry for it. */
+		kvm_context = kvm_open();
+		if (kvm_context == NULL)
+			break;
+		proc_entry = kvmgetproc(kvm_context, pid);
+		if (proc_entry == NULL 
+			|| (proc_entry->args != NULL 
+				&& strcmp(forked_child_name, proc_entry->args + 8) != 0))
+			done = 1;
+		kvm_close(kvm_context);
+	}
+	
+	alarm10(0);
+	sigsetmask(~sigmask(SIGALRM));
+	signal(SIGALRM, prev_alarm_sig);
+	
+ret:
 	sigsetmask(oldmask);
-	
 	return pid;
 }
 

@@ -49,6 +49,7 @@ void FAST_FUNC kill_myself_with_sig(int sig)
 {
 	signal(sig, SIG_DFL);
 	sig_unblock(sig);
+	signal_parent_to_resume();
 	raise(sig);
 	_exit(sig | 128); /* Should not reach it */
 }

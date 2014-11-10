@@ -1636,7 +1636,8 @@ static ALWAYS_INLINE unsigned char bb_ascii_tolower(unsigned char a)
 /* Signal to the parent that it can resume executing after a fork,
  * because the child is about to exec or terminate.
  */
-int signal_parent_to_resume(void);
+void signal_parent_to_resume(void);
+int is_forked_child(void);
 
 /* Get path of current executable */
 char *get_exec_path(void);

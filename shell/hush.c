@@ -1343,17 +1343,24 @@ static void restore_G_args(save_arg_t *sv, char **argv)
 }
 
 
-/* Signal to the parent that it can resume executing after a fork,
- * because the child is about to exec or terminate.
- */
-int signal_parent_to_resume(void) {
+int is_forked_child(void) {
 #ifdef __GNO__
 	if (getpid() != G.last_execed_pid) {
-		kill(getppid(), SIGUSR2);
 		return 1;
 	}
 #endif
 	return 0;
+}
+
+/* Signal to the parent that it can resume executing after a fork,
+ * because the child is about to exec or terminate.
+ */
+void signal_parent_to_resume(void) {
+#ifdef __GNO__
+	if (getpid() != G.last_execed_pid) {
+		kill(getppid(), SIGALRM);
+	}
+#endif
 }
 
 
@@ -1374,8 +1381,12 @@ void _exit_wrapper(int status) {
 		// Call regular _exit()
 		_exit(status);
 	} else {
-		// We're a forked child. Just call QuitGS.  We do it in 
-		// assembly so we can push the return value on the stack.
+		// We're a forked child.
+		fflush(stdout);
+		fflush(stderr);
+		signal_parent_to_resume();
+		
+		// Call QuitGS in assembly so we can push the return value on the stack.
 		while (1) {
 			asm {
 				lda status
@@ -1627,7 +1638,6 @@ static void sigexit(int sig)
 
 	/* Not a signal, just exit */
 	if (sig <= 0) {
-		signal_parent_to_resume();
 		_exit(- sig);
 	}
 
@@ -6105,8 +6115,11 @@ static void xforked_child(void *args_struct) {
 	) {
 		static const char *const argv[] = { NULL, NULL };
 		builtin_trap((char**)argv);
-		signal_parent_to_resume();
+# ifdef __GNO__
+		_exit(0);
+# else
 		exit(0); /* not _exit() - we need to fflush */
+# endif
 	}
 # if BB_MMU
 	reset_traps_to_defaults();
@@ -6264,7 +6277,6 @@ static void xvforked_child(void *grandchild_args) {
 	pid = xvfork_and_run(xforked_grandchild, grandchild_args);
 #endif
 	if (pid != 0) {
-		signal_parent_to_resume();
 		_exit(0);
 	}
 	xforked_grandchild(grandchild_args);  // Only get here in BB_MMU case
@@ -6706,7 +6718,6 @@ static NOINLINE void pseudo_exec_argv(nommu_save_t *nommu_save,
 		 * expand_assignments(): think about ... | var=`sleep 1` | ...
 		 */
 		free_strings(new_env);
-		signal_parent_to_resume();
 		_exit(EXIT_SUCCESS);
 	}
 
@@ -6830,7 +6841,6 @@ static void pseudo_exec(nommu_save_t *nommu_save,
 
 	/* Case when we are here: ... | >file */
 	debug_printf_exec(("pseudo_exec'ed null command\n"));
-	signal_parent_to_resume();
 	_exit(EXIT_SUCCESS);
 }
 
@@ -7570,7 +7580,6 @@ static void forked_child(void *args_struct) {
 	/* Like bash, explicit redirects override pipes,
 	 * and the pipe fd is available for dup'ing. */
 	if (setup_redirects(*args->command_p, NULL)) {
-		signal_parent_to_resume();
 		_exit(1);
 	}
 
@@ -8492,14 +8501,6 @@ int hush_main(int argc, char **argv)
 #else
 	/* We have interactiveness code disabled */
 	install_special_sighandlers();
-#endif
-
-#ifdef __GNO__
-	/* Don't terminate on SIGUSR2, because we'll be using it to signal when
-	 * it's safe to resume after a fork.  We don't need to actually do any 
-	 * other handling for it, so just set it to SIG_IGN.
-	 */
-	install_sighandler(SIGUSR2, SIG_IGN);
 #endif
 
 	/* bash:
