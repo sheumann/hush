@@ -89,6 +89,12 @@ LIBBB_D_SEG = -SLIBBB_C___
 INCLUDES = -I include -I shell -I libbb
 DEFINES = -Dhush_main=main -DNDEBUG
 
+// This should be the ltermcap from GNO 2.0.4. The one from 2.0.6 is broken
+// (links to unimplemented functions), so don't use it.
+// The 2.0.4 version is in the "lib.shk" file within  
+// ftp://ftp.gno.org/pub/apple2/gs.specific/gno/base/v204/gnodisk1.sdk
+LIBS = -l/usr/lib/libtermcap.204
+
 # Hack to effectively disable close_on_exec_on method for now.
 # This will cause us to leak file descriptors.  TODO: Fix.
 DEFINES += -DF_SETFD=-1 -DFD_CLOEXEC=-1
@@ -107,7 +113,7 @@ CFLAGS += -g -DDEBUG
 PROG = hush
 
 $(PROG): $(OBJS)
-	$(CC) $(OBJS) -o $@
+	$(CC) $(LIBS) $(OBJS) -o $@
 
 %.a: %.c
 	$(CC) $(INCLUDES) $(DEFINES) $(CFLAGS) -c $< -o $@ \

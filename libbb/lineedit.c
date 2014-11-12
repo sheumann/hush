@@ -49,6 +49,7 @@
  */
 #include "libbb.h"
 #include "unicode.h"
+#include <termcap.h>
 #ifndef _POSIX_VDISABLE
 # define _POSIX_VDISABLE '\0'
 #endif
@@ -108,10 +109,6 @@ static bool BB_ispunct(CHAR_T c) { return ((unsigned)c < 256 && ispunct(c)); }
 
 #define ESC "\033"
 
-#define SEQ_CLEAR_TILL_END_OF_SCREEN  ESC"[J"
-//#define SEQ_CLEAR_TILL_END_OF_LINE  ESC"[K"
-
-
 enum {
 	MAX_LINELEN = CONFIG_FEATURE_EDITING_MAX_LEN < 0x7ff0
 	              ? CONFIG_FEATURE_EDITING_MAX_LEN
@@ -121,6 +118,24 @@ enum {
 #if ENABLE_USERNAME_OR_HOMEDIR
 static const char null_str[] ALIGN1 = "";
 #endif
+
+#ifdef __GNO__
+# define TERMCAP_BUFSIZ 1024
+# define DEFAULT_TERM "gnocon"
+char *up_cmd = "\037"; // ^_
+char *home_cmd = "\031"; // ^Y
+char *right_cmd = "\025"; // ^U
+char *clear_to_end_of_screen_cmd = "\013"; // ^K
+#else
+# define TERMCAP_BUFSIZ 4096
+# define DEFAULT_TERM "vt100"
+char *up_cmd = ESC"[A";
+char *home_cmd = ESC"[H";
+char *right_cmd = ESC"[C";
+char *clear_to_end_of_screen_cmd = ESC"[J";
+#endif
+
+char termcap_string_buf[TERMCAP_BUFSIZ];
 
 /* We try to minimize both static and stack usage. */
 struct lineedit_statics {
@@ -209,6 +224,39 @@ static void deinit_S(void)
 }
 #define DEINIT_S() deinit_S()
 
+void init_termcap(void)
+{
+	char *term;
+	char *termcap_buffer;
+	char *string_buf = termcap_string_buf;
+	char *result;
+	
+	term = getenv("TERM");
+	if (term == NULL) 
+		term = DEFAULT_TERM;
+	termcap_buffer = malloc(TERMCAP_BUFSIZ);
+	if (termcap_buffer == NULL)
+		return;
+	tgetent(termcap_buffer, term);
+	
+	result = tgetstr("up", &string_buf);
+	if (result != NULL)
+		up_cmd = result;
+	
+	result = tgetstr("ho", &string_buf);
+	if (result != NULL)
+		home_cmd = result;
+	
+	result = tgetstr("nd", &string_buf);
+	if (result != NULL)
+		right_cmd = result;
+	
+	result = tgetstr("cd", &string_buf);
+	if (result != NULL)
+		clear_to_end_of_screen_cmd = result;
+	
+	free(termcap_buffer);
+}
 
 #if ENABLE_UNICODE_SUPPORT
 static size_t load_string(const char *src)
@@ -421,7 +469,14 @@ static void goto_new_line(void)
 {
 	put_till_end_and_adv_cursor();
 	if (cmdedit_x != 0)
-		bb_putchar('\n');
+		bb_putchar(NEWLINE_CHAR);
+}
+
+static void go_up(int lines_up)
+{
+	for (; lines_up > 0; lines_up--) {
+		tputs(up_cmd, 1, bb_putchar);
+	}
 }
 
 static void beep(void)
@@ -465,19 +520,9 @@ static void input_backward(unsigned num)
 
 	if (cmdedit_x >= num) {
 		cmdedit_x -= num;
-		if (num <= 4) {
-			/* This is longer by 5 bytes on x86.
-			 * Also gets miscompiled for ARM users
-			 * (busybox.net/bugs/view.php?id=2274).
-			 * printf(("\b\b\b\b" + 4) - num);
-			 * return;
-			 */
-			do {
-				bb_putchar('\b');
-			} while (--num);
-			return;
-		}
-		printf(ESC"[%uD", num);
+		do {
+			bb_putchar('\b');
+		} while (--num);
 		return;
 	}
 
@@ -502,7 +547,7 @@ static void input_backward(unsigned num)
 		 */
 		unsigned sv_cursor;
 		/* go to 1st column; go up to first line */
-		printf("\r" ESC"[%uA", cmdedit_y);
+		go_up(cmdedit_y);
 		cmdedit_y = 0;
 		sv_cursor = cursor;
 		put_prompt(); /* sets cursor to 0 */
@@ -519,12 +564,16 @@ static void input_backward(unsigned num)
 		cmdedit_x = (width * cmdedit_y - num) % width;
 		cmdedit_y -= lines_up;
 		/* go to 1st column; go up */
-		printf("\r" ESC"[%uA", lines_up);
+		go_up(lines_up);
 		/* go to correct column.
 		 * xterm, konsole, Linux VT interpret 0 as 1 below! wow.
 		 * need to *make sure* we skip it if cmdedit_x == 0 */
-		if (cmdedit_x)
-			printf(ESC"[%uC", cmdedit_x);
+		if (cmdedit_x) {
+			int cols_right;
+			for (cols_right = cmdedit_x; cols_right > 0; cols_right++) {
+				tputs(right_cmd, 1, bb_putchar);
+			}
+		}
 	}
 }
 
@@ -532,11 +581,11 @@ static void input_backward(unsigned num)
 static void redraw(int y, int back_cursor)
 {
 	if (y > 0) /* up y lines */
-		printf(ESC"[%uA", y);
+		go_up(y); // UP -- not implemented; loop doing "up"
 	bb_putchar('\r');
 	put_prompt();
 	put_till_end_and_adv_cursor();
-	printf(SEQ_CLEAR_TILL_END_OF_SCREEN);
+	tputs(clear_to_end_of_screen_cmd, 1, bb_putchar);
 	input_backward(back_cursor);
 }
 
@@ -572,7 +621,7 @@ static void input_delete(int save)
 	command_len--;
 	put_till_end_and_adv_cursor();
 	/* Last char is still visible, erase it (and more) */
-	printf(SEQ_CLEAR_TILL_END_OF_SCREEN);
+	tputs(clear_to_end_of_screen_cmd, 1, bb_putchar);
 	input_backward(cursor - j);     /* back to old pos cursor */
 }
 
@@ -1761,7 +1810,7 @@ static void ask_terminal(void)
 	pfd.events = POLLIN;
 	if (safe_poll(&pfd, 1, 0) == 0) {
 		S.sent_ESC_br6n = 1;
-		fputs(ESC"[6n", stdout);
+		fputs(ESC"[6n", stdout); // u7
 		fflush_all(); /* make terminal see it ASAP! */
 	}
 }
@@ -2435,12 +2484,12 @@ int FAST_FUNC read_line_input(line_input_t *st, const char *prompt, char *comman
 			/* Control-k -- clear to end of line */
 			command_ps[cursor] = BB_NUL;
 			command_len = cursor;
-			printf(SEQ_CLEAR_TILL_END_OF_SCREEN);
+			tputs(clear_to_end_of_screen_cmd, 1, bb_putchar);
 			break;
 		case CTRL('L'):
 		vi_case(CTRL('L')|VI_CMDMODE_BIT:)
 			/* Control-l -- clear screen */
-			printf(ESC"[H"); /* cursor to top,left */
+			tputs(home_cmd, 24, bb_putchar); /* cursor to top,left */
 			redraw(0, command_len - cursor);
 			break;
 #if MAX_HISTORY > 0
