@@ -1345,6 +1345,13 @@ enum {
 int32_t read_key(int fd, char *buffer, int timeout) FAST_FUNC;
 void read_key_ungets(char *buffer, const char *str, unsigned len) FAST_FUNC;
 
+/* Terminal escape sequences to process in input */
+struct escape_seq {
+	char *seq;
+	signed char keycode;
+};
+extern struct escape_seq escape_seqs[];
+extern int n_escape_seqs;
 
 #if ENABLE_FEATURE_EDITING
 /* It's NOT just ENABLEd or disabled. It's a number: */

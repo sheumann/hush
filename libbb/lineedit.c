@@ -137,6 +137,11 @@ char *clear_to_end_of_screen_cmd = ESC"[J";
 
 char termcap_string_buf[TERMCAP_BUFSIZ];
 
+/* Terminal escape sequences to process in input (used by read_key) */
+#define MAX_ESCAPE_SEQS 14
+struct escape_seq escape_seqs[MAX_ESCAPE_SEQS];
+int n_escape_seqs;
+
 /* We try to minimize both static and stack usage. */
 struct lineedit_statics {
 	line_input_t *state;
@@ -224,6 +229,29 @@ static void deinit_S(void)
 }
 #define DEINIT_S() deinit_S()
 
+static void add_escape_seq(char *termcap_code, signed char keycode, char **string_buf)
+{
+	char *result = tgetstr(termcap_code, string_buf);
+	if (result != NULL) {
+		escape_seqs[n_escape_seqs].seq = result;
+		escape_seqs[n_escape_seqs].keycode = keycode;
+		n_escape_seqs++;
+		
+		/* Hack to deal with "normal mode" escape sequences if termcap gives
+		 * us sequences for "cursor application mode" (on vt100-ish terminals)
+		 */
+		if (strlen(result) >= 3 && result[0] == 27 && result[1] == 'O') {
+			result = strdup(result);
+			if (result == NULL)
+				return;
+			result[1] = '[';
+			escape_seqs[n_escape_seqs].seq = result;
+			escape_seqs[n_escape_seqs].keycode = keycode;
+			n_escape_seqs++;
+		}
+	}
+}
+
 void init_termcap(void)
 {
 	char *term;
@@ -254,6 +282,16 @@ void init_termcap(void)
 	result = tgetstr("cd", &string_buf);
 	if (result != NULL)
 		clear_to_end_of_screen_cmd = result;
+		
+	n_escape_seqs = 0;
+	add_escape_seq("ku", KEYCODE_UP, &string_buf);
+	add_escape_seq("kd", KEYCODE_DOWN, &string_buf);
+	add_escape_seq("kl", KEYCODE_LEFT, &string_buf);
+	add_escape_seq("kr", KEYCODE_RIGHT, &string_buf);
+	add_escape_seq("kD", KEYCODE_DELETE, &string_buf);
+	add_escape_seq("kh", KEYCODE_HOME, &string_buf);
+	add_escape_seq("@7", KEYCODE_END, &string_buf);
+	/* Not currently supported: CTRL/ALT_LEFT/RIGHT */
 	
 	free(termcap_buffer);
 }

@@ -12,100 +12,15 @@
 int32_t FAST_FUNC read_key(int fd, char *buffer, int timeout)
 {
 	struct pollfd pfd;
-	const char *seq;
 	int n;
-
-	/* Known escape sequences for cursor and function keys.
-	 * See "Xterm Control Sequences"
-	 * http://invisible-island.net/xterm/ctlseqs/ctlseqs.html
-	 */
-	static const char esccmds[] ALIGN1 = {
-		'O','A'        |0x80,KEYCODE_UP      ,
-		'O','B'        |0x80,KEYCODE_DOWN    ,
-		'O','C'        |0x80,KEYCODE_RIGHT   ,
-		'O','D'        |0x80,KEYCODE_LEFT    ,
-		'O','H'        |0x80,KEYCODE_HOME    ,
-		'O','F'        |0x80,KEYCODE_END     ,
-#if 0
-		'O','P'        |0x80,KEYCODE_FUN1    ,
-		/* [ESC] ESC O [2] P - [Alt-][Shift-]F1 */
-		/* ESC [ O 1 ; 2 P - Shift-F1 */
-		/* ESC [ O 1 ; 3 P - Alt-F1 */
-		/* ESC [ O 1 ; 4 P - Alt-Shift-F1 */
-		/* ESC [ O 1 ; 5 P - Ctrl-F1 */
-		/* ESC [ O 1 ; 6 P - Ctrl-Shift-F1 */
-		'O','Q'        |0x80,KEYCODE_FUN2    ,
-		'O','R'        |0x80,KEYCODE_FUN3    ,
-		'O','S'        |0x80,KEYCODE_FUN4    ,
-#endif
-		'[','A'        |0x80,KEYCODE_UP      ,
-		'[','B'        |0x80,KEYCODE_DOWN    ,
-		'[','C'        |0x80,KEYCODE_RIGHT   ,
-		'[','D'        |0x80,KEYCODE_LEFT    ,
-		/* ESC [ 1 ; 2 x, where x = A/B/C/D: Shift-<arrow> */
-		/* ESC [ 1 ; 3 x, where x = A/B/C/D: Alt-<arrow> - implemented below */
-		/* ESC [ 1 ; 4 x, where x = A/B/C/D: Alt-Shift-<arrow> */
-		/* ESC [ 1 ; 5 x, where x = A/B/C/D: Ctrl-<arrow> - implemented below */
-		/* ESC [ 1 ; 6 x, where x = A/B/C/D: Ctrl-Shift-<arrow> */
-		/* ESC [ 1 ; 7 x, where x = A/B/C/D: Ctrl-Alt-<arrow> */
-		/* ESC [ 1 ; 8 x, where x = A/B/C/D: Ctrl-Alt-Shift-<arrow> */
-		'[','H'        |0x80,KEYCODE_HOME    , /* xterm */
-		'[','F'        |0x80,KEYCODE_END     , /* xterm */
-		/* [ESC] ESC [ [2] H - [Alt-][Shift-]Home (End similarly?) */
-		/* '[','Z'        |0x80,KEYCODE_SHIFT_TAB, */
-		'[','1','~'    |0x80,KEYCODE_HOME    , /* vt100? linux vt? or what? */
-		'[','2','~'    |0x80,KEYCODE_INSERT  ,
-		/* ESC [ 2 ; 3 ~ - Alt-Insert */
-		'[','3','~'    |0x80,KEYCODE_DELETE  ,
-		/* [ESC] ESC [ 3 [;2] ~ - [Alt-][Shift-]Delete */
-		/* ESC [ 3 ; 3 ~ - Alt-Delete */
-		/* ESC [ 3 ; 5 ~ - Ctrl-Delete */
-		'[','4','~'    |0x80,KEYCODE_END     , /* vt100? linux vt? or what? */
-		'[','5','~'    |0x80,KEYCODE_PAGEUP  ,
-		/* ESC [ 5 ; 3 ~ - Alt-PgUp */
-		/* ESC [ 5 ; 5 ~ - Ctrl-PgUp */
-		/* ESC [ 5 ; 7 ~ - Ctrl-Alt-PgUp */
-		'[','6','~'    |0x80,KEYCODE_PAGEDOWN,
-		'[','7','~'    |0x80,KEYCODE_HOME    , /* vt100? linux vt? or what? */
-		'[','8','~'    |0x80,KEYCODE_END     , /* vt100? linux vt? or what? */
-#if 0
-		'[','1','1','~'|0x80,KEYCODE_FUN1    , /* old xterm, deprecated by ESC O P */
-		'[','1','2','~'|0x80,KEYCODE_FUN2    , /* old xterm... */
-		'[','1','3','~'|0x80,KEYCODE_FUN3    , /* old xterm... */
-		'[','1','4','~'|0x80,KEYCODE_FUN4    , /* old xterm... */
-		'[','1','5','~'|0x80,KEYCODE_FUN5    ,
-		/* [ESC] ESC [ 1 5 [;2] ~ - [Alt-][Shift-]F5 */
-		'[','1','7','~'|0x80,KEYCODE_FUN6    ,
-		'[','1','8','~'|0x80,KEYCODE_FUN7    ,
-		'[','1','9','~'|0x80,KEYCODE_FUN8    ,
-		'[','2','0','~'|0x80,KEYCODE_FUN9    ,
-		'[','2','1','~'|0x80,KEYCODE_FUN10   ,
-		'[','2','3','~'|0x80,KEYCODE_FUN11   ,
-		'[','2','4','~'|0x80,KEYCODE_FUN12   ,
-		/* ESC [ 2 4 ; 2 ~ - Shift-F12 */
-		/* ESC [ 2 4 ; 3 ~ - Alt-F12 */
-		/* ESC [ 2 4 ; 4 ~ - Alt-Shift-F12 */
-		/* ESC [ 2 4 ; 5 ~ - Ctrl-F12 */
-		/* ESC [ 2 4 ; 6 ~ - Ctrl-Shift-F12 */
-#endif
-		/* '[','1',';','5','A' |0x80,KEYCODE_CTRL_UP   , - unused */
-		/* '[','1',';','5','B' |0x80,KEYCODE_CTRL_DOWN , - unused */
-		'[','1',';','5','C' |0x80,KEYCODE_CTRL_RIGHT,
-		'[','1',';','5','D' |0x80,KEYCODE_CTRL_LEFT ,
-		/* '[','1',';','3','A' |0x80,KEYCODE_ALT_UP    , - unused */
-		/* '[','1',';','3','B' |0x80,KEYCODE_ALT_DOWN  , - unused */
-		'[','1',';','3','C' |0x80,KEYCODE_ALT_RIGHT,
-		'[','1',';','3','D' |0x80,KEYCODE_ALT_LEFT ,
-		/* '[','3',';','3','~' |0x80,KEYCODE_ALT_DELETE, - unused */
-		0
-	};
+	int count;
+	unsigned char c;
 
 	pfd.fd = fd;
 	pfd.events = POLLIN;
 
 	buffer++; /* saved chars counter is in buffer[-1] now */
 
- start_over:
 	errno = 0;
 	n = (unsigned char)buffer[-1];
 	if (n == 0) {
@@ -131,27 +46,32 @@ int32_t FAST_FUNC read_key(int fd, char *buffer, int timeout)
 			return -1;
 	}
 
-	{
-		unsigned char c = buffer[0];
-		n--;
-		if (n)
-			memmove(buffer, buffer + 1, n);
-		/* Only ESC starts ESC sequences */
-		if (c != 27) {
-			buffer[-1] = n;
-			return c;
-		}
+	/* ASCII printable chars presumably don't start escape sequences */
+	c = buffer[0];
+	if (c >= ' ' && c <= '~') {
+		goto return_c;
 	}
 
-	/* Loop through known ESC sequences */
-	seq = esccmds;
-	while (*seq != '\0') {
+	/* Loop through known escape sequences */
+	for (count = 0; count < n_escape_seqs; count++) {
+		struct escape_seq *escseq = &escape_seqs[count];
+		
 		/* n - position in sequence we did not read yet */
 		int i = 0; /* position in sequence to compare */
 
-		/* Loop through chars in this sequence */
 		while (1) {
 			/* So far escape sequence matched up to [i-1] */
+			if (escseq->seq[i] == 0) {
+				/* Entire seq matched */
+				n = 0;
+				/* n -= i; memmove(...);
+				 * would be more correct,
+				 * but we never read ahead that much,
+				 * and n == i here. */
+				buffer[-1] = 0;
+				return escseq->keycode;
+			}
+			
 			if (n <= i) {
 				/* Need more chars, read another one if it wouldn't block.
 				 * Note that escape sequences come in as a unit,
@@ -160,11 +80,9 @@ int32_t FAST_FUNC read_key(int fd, char *buffer, int timeout)
 				 * split up by transmission over a serial console. */
 				if (safe_poll(&pfd, 1, 50) == 0) {
 					/* No more data!
-					 * Array is sorted from shortest to longest,
-					 * we can't match anything later in array -
-					 * anything later is longer than this seq.
-					 * Break out of both loops. */
-					goto got_all;
+					 * Can't match this sequence. Keep looping in case
+					 * a later one is shorter. */
+					goto next_seq;
 				}
 				errno = 0;
 				if (safe_read(fd, buffer + n, 1) <= 0) {
@@ -179,99 +97,37 @@ int32_t FAST_FUNC read_key(int fd, char *buffer, int timeout)
 				}
 				n++;
 			}
-			if (buffer[i] != (seq[i] & 0x7f)) {
+			if (buffer[i] != (escseq->seq[i] & 0x7f)) {
 				/* This seq doesn't match, go to next */
-				seq += i;
-				/* Forward to last char */
-				while (!(*seq & 0x80))
-					seq++;
-				/* Skip it and the keycode which follows */
-				seq += 2;
-				break;
-			}
-			if (seq[i] & 0x80) {
-				/* Entire seq matched */
-				n = 0;
-				/* n -= i; memmove(...);
-				 * would be more correct,
-				 * but we never read ahead that much,
-				 * and n == i here. */
-				buffer[-1] = 0;
-				return (signed char)seq[i+1];
+				goto next_seq;
 			}
 			i++;
 		}
+ next_seq: ;
 	}
+
 	/* We did not find matching sequence.
 	 * We possibly read and stored more input in buffer[] by now.
-	 * n = bytes read. Try to read more until we time out.
+	 * n = bytes read.
 	 */
-	while (n < KEYCODE_BUFFER_SIZE-1) { /* 1 for count byte at buffer[-1] */
-		if (safe_poll(&pfd, 1, 50) == 0) {
-			/* No more data! */
-			break;
-		}
-		errno = 0;
-		if (safe_read(fd, buffer + n, 1) <= 0) {
-			/* If EAGAIN, then fd is O_NONBLOCK and poll lied:
-			 * in fact, there is no data. */
-			if (errno != EAGAIN) {
-				/* otherwise: it's EOF/error */
-				buffer[-1] = 0;
-				return -1;
-			}
-			break;
-		}
-		n++;
-		/* Try to decipher "ESC [ NNN ; NNN R" sequence */
-#if (ENABLE_FEATURE_EDITING_ASK_TERMINAL || ENABLE_FEATURE_VI_ASK_TERMINAL || ENABLE_FEATURE_LESS_ASK_TERMINAL)
-# error "read_key's return value would have to be 64-bit to support this"
-		if ((ENABLE_FEATURE_EDITING_ASK_TERMINAL
-		    || ENABLE_FEATURE_VI_ASK_TERMINAL
-		    || ENABLE_FEATURE_LESS_ASK_TERMINAL
-		    )
-		 && n >= 5
-		 && buffer[0] == '['
-		 && buffer[n-1] == 'R'
-		 && isdigit(buffer[1])
-		) {
-			char *end;
-			unsigned long row, col;
-
-			row = strtoul(buffer + 1, &end, 10);
-			if (*end != ';' || !isdigit(end[1]))
-				continue;
-			col = strtoul(end + 1, &end, 10);
-			if (*end != 'R')
-				continue;
-			if (row < 1 || col < 1 || (row | col) > 0x7fff)
-				continue;
-
-			buffer[-1] = 0;
-			/* Pack into "1 <row15bits> <col16bits>" 32-bit sequence */
-			col |= (((-1 << 15) | row) << 16);
-			/* Return it in high-order word */
-			return ((int64_t) col << 32) | (uint32_t)KEYCODE_CURSOR_POS;
-		}
-#endif
-	}
  got_all:
-
-	if (n <= 1) {
-		/* Alt-x is usually returned as ESC x.
-		 * Report ESC, x is remembered for the next call.
-		 */
-		buffer[-1] = n;
-		return 27;
+	if (n <= 0) {
+		buffer[-1] = 0;
+		return -1;
 	}
 
-	/* We were doing "buffer[-1] = n; return c;" here, but this results
-	 * in unknown key sequences being interpreted as ESC + garbage.
-	 * This was not useful. Pretend there was no key pressed,
-	 * go and wait for a new keypress:
+	/* Returning miscellaneous characters may result in unknown 
+	 * escape sequences being interpreted as ESC + garbage, but
+	 * it's difficult to know what to filter out, so we'll
+	 * just return everything for now.
 	 */
-	buffer[-1] = 0;
-	goto start_over;
+	c = buffer[0];
+ return_c:
+	n--;
+	if (n)
+		memmove(buffer, buffer + 1, n);
+	buffer[-1] = n;
+	return c;
 }
 
 void FAST_FUNC read_key_ungets(char *buffer, const char *str, unsigned len)
