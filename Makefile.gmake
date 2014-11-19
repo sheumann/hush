@@ -5,6 +5,7 @@ SRCS = \
 	shell/random.c \
 	shell/shell.common.c \
 	shell/glob.c \
+	shell/fnmatch.c \
 	coreutils/echo.c \
 	coreutils/test.c \
 	coreutils/test.ptr.hack.c \
