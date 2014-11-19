@@ -294,6 +294,18 @@ int FAST_FUNC bb_putchar(int ch)
 	return putchar(ch);
 }
 
+/* Write a character without any newline translation (useful for GNO) */
+void FAST_FUNC bb_putchar_binary(int ch)
+{
+#ifndef __GNO__
+	putchar(ch);
+#else
+	fflush(stdout);
+	write(STDOUT_FILENO, &ch, 1);
+#endif
+}
+
+
 /* Die with an error message if we can't copy an entire FILE* to stdout,
  * then close that file. */
 void FAST_FUNC xprint_and_close_file(FILE *file)

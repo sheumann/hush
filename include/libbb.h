@@ -613,6 +613,7 @@ char *xmalloc_substitute_string(const char *src, int count, const char *sub, con
 /* Guaranteed to NOT be a macro (smallest code). Saves nearly 2k on uclibc.
  * But potentially slow, don't use in one-billion-times loops */
 int bb_putchar(int ch) FAST_FUNC;
+void bb_putchar_binary(int ch) FAST_FUNC;
 /* Note: does not use stdio, writes to fd 2 directly */
 int bb_putchar_stderr(char ch) FAST_FUNC;
 char *xasprintf(const char *format, ...) __attribute__ ((format(printf, 1, 2))) FAST_FUNC RETURNS_MALLOC;

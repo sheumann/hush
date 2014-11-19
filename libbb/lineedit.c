@@ -135,6 +135,8 @@ char *right_cmd = ESC"[C";
 char *clear_to_end_of_screen_cmd = ESC"[J";
 #endif
 
+bool automargin;	/* Does terminal have automatic margins? */
+
 char termcap_string_buf[TERMCAP_BUFSIZ];
 
 /* Terminal escape sequences to process in input (used by read_key) */
@@ -266,6 +268,8 @@ void init_termcap(void)
 	if (termcap_buffer == NULL)
 		return;
 	tgetent(termcap_buffer, term);
+	
+	automargin = tgetflag("am");
 	
 	result = tgetstr("up", &string_buf);
 	if (result != NULL)
@@ -470,7 +474,10 @@ static void put_cur_glyph_and_inc_cursor(void)
 		 * have automargin (IOW: it is moving cursor to next line
 		 * by itself (which is wrong for VT-10x terminals)),
 		 * this will break things: there will be one extra empty line */
-		puts("\r"); /* + implicit '\n' */
+		if (!automargin) {
+			bb_putchar_binary('\r');
+			bb_putchar_binary('\n');
+		}
 #else
 		/* VT-10x terminals don't wrap cursor to next line when last char
 		 * on the line is printed - cursor stays "over" this char.
@@ -620,7 +627,7 @@ static void redraw(int y, int back_cursor)
 {
 	if (y > 0) /* up y lines */
 		go_up(y); // UP -- not implemented; loop doing "up"
-	bb_putchar('\r');
+	bb_putchar_binary('\r');
 	put_prompt();
 	put_till_end_and_adv_cursor();
 	tputs(clear_to_end_of_screen_cmd, 1, bb_putchar);
@@ -2412,7 +2419,7 @@ int FAST_FUNC read_line_input(line_input_t *st, const char *prompt, char *comman
 	tcsetattr_stdin_TCSANOW(&new_settings);
 #else
 	new_settings.sg_flags |= CBREAK;
-	new_settings.sg_flags &= ~ECHO;
+	new_settings.sg_flags &= ~(CRMOD|ECHO);
 	ioctl(STDIN_FILENO, TIOCSETN, &new_settings);
 #endif
 
