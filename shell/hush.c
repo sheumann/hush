@@ -7521,7 +7521,11 @@ static NOINLINE int run_pipe(struct pipe *pi)
 #if ENABLE_HUSH_JOB
 			/* Second and next children need to know pid of first one */
 			if (pi->pgrp < 0)
+# ifndef __GNO__
 				pi->pgrp = command->pid;
+# else
+				pi->pgrp = _getpgrp(command->pid);
+# endif
 #endif
 		}
 
@@ -7545,10 +7549,41 @@ static NOINLINE int run_pipe(struct pipe *pi)
 }
 	
 
+/* Get a new process group ID and set our pgrp to it. */
+#ifndef __GNO__
+static pid_t new_pgrp(int fdtty)
+{
+	pid_t pgrp = getpid();
+	setpgid(0, pgrp);
+	return pgrp;
+}
+#else
+/* On GNO we can't just use our pid--pgrps have a separate, smaller range
+ * and need to be explicitly allocated with tcnewpgrp. */
+static pid_t new_pgrp(int fdtty)
+{
+	int result;
+	
+	result = tcnewpgrp(fdtty);
+	if (result != 0)
+		return -1;
+	
+	settpgrp(fdtty);
+	
+	/* Set tty back to parent's pgrp for now. This may be what we want if
+	 * this job is backgrounded.  Otherwise, we'll re-set it to the new
+	 * pgrp later. */
+	tctpgrp(fdtty, getppid());
+	
+	return getpgrp();
+}
+#endif
+
 #ifdef __ORCAC__
 # pragma databank 1
 #endif
-static void forked_child(void *args_struct) {
+static void forked_child(void *args_struct)
+{
 	struct child_args *args = (struct child_args *)args_struct;
 
 #if ENABLE_HUSH_JOB
@@ -7561,7 +7596,7 @@ static void forked_child(void *args_struct) {
 		pid_t pgrp;
 		pgrp = (*args->pi_p)->pgrp;
 		if (pgrp < 0) /* true for 1st process only */
-			pgrp = getpid();
+			pgrp = new_pgrp(G_interactive_fd);
 		if (setpgid(0, pgrp) == 0
 		 && (*args->pi_p)->followup != PIPE_BG
 		 && G_saved_tty_pgrp /* we have ctty */

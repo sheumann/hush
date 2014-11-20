@@ -205,9 +205,13 @@ typedef unsigned smalluint;
 #endif
 
 /* Define bb_setpgrp */
-#if defined(__digital__) && defined(__unix__) || defined(__GNO__)
+#if defined(__digital__) && defined(__unix__)
 /* use legacy setpgrp(pid_t, pid_t) for now.  move to platform.c */
 # define bb_setpgrp() do { pid_t __me = getpid(); setpgrp(__me, __me); } while (0)
+#elif defined(__GNO__)
+/* On GNO, pgrps have a different (smaller) numbering space than processes,
+ * so in general it's not valid to set out prgp equal to our pid. */
+# define bb_setpgrp() dont_use_bb_setpgrp_on_gno()
 #else
 # define bb_setpgrp() setpgrp()
 #endif
