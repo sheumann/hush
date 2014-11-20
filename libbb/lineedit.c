@@ -2349,6 +2349,8 @@ int FAST_FUNC read_line_input(line_input_t *st, const char *prompt, char *comman
 #else
 	struct sgttyb initial_settings;
 	struct sgttyb new_settings;
+	struct tchars initial_tchars;
+	struct tchars new_tchars;
 #endif
 	char read_key_buffer[KEYCODE_BUFFER_SIZE];
 
@@ -2359,6 +2361,7 @@ int FAST_FUNC read_line_input(line_input_t *st, const char *prompt, char *comman
 	 || !(initial_settings.c_lflag & ECHO)
 #else
 	if (ioctl(STDIN_FILENO, TIOCGETP, &initial_settings) < 0
+	 || ioctl(STDIN_FILENO, TIOCGETC, &initial_tchars) < 0
 	 || !(initial_settings.sg_flags & ECHO)
 #endif
 	) {
@@ -2421,6 +2424,11 @@ int FAST_FUNC read_line_input(line_input_t *st, const char *prompt, char *comman
 	new_settings.sg_flags |= CBREAK;
 	new_settings.sg_flags &= ~(CRMOD|ECHO);
 	ioctl(STDIN_FILENO, TIOCSETN, &new_settings);
+	/* Contrary to documentation, tchars aren't fully disabled in CBREAK mode,
+	 * so do it explicitly.  Maybe other characters should be disabled too? */
+	new_tchars = initial_tchars;
+	new_tchars.t_intrc = (char)-1;	
+	ioctl(STDIN_FILENO, TIOCSETC, &new_tchars);
 #endif
 
 #if ENABLE_USERNAME_OR_HOMEDIR
@@ -2798,7 +2806,9 @@ int FAST_FUNC read_line_input(line_input_t *st, const char *prompt, char *comman
 			if (initial_settings.c_cc[VINTR] != 0
 			 && ic_raw == initial_settings.c_cc[VINTR]
 #else
-			if (ic_raw == CINTR
+			if (initial_tchars.t_intrc != (char)-1 
+			 && initial_tchars.t_intrc != 0
+			 && ic_raw == initial_tchars.t_intrc
 #endif
 			) {
 				/* Ctrl-C (usually) - stop gathering input */
@@ -2811,7 +2821,9 @@ int FAST_FUNC read_line_input(line_input_t *st, const char *prompt, char *comman
 			if (initial_settings.c_cc[VEOF] != 0
 			 && ic_raw == initial_settings.c_cc[VEOF]
 #else
-			if (ic_raw == CEOF
+			if (initial_tchars.t_eofc != (char)-1 
+			 && initial_tchars.t_eofc != 0
+			 && ic_raw == initial_tchars.t_eofc
 #endif
 			) {
 				/* Ctrl-D (usually) - delete one character,
@@ -2930,6 +2942,7 @@ int FAST_FUNC read_line_input(line_input_t *st, const char *prompt, char *comman
 	tcsetattr_stdin_TCSANOW(&initial_settings);
 #else
 	ioctl(STDIN_FILENO, TIOCSETN, &initial_settings);
+	ioctl(STDIN_FILENO, TIOCSETC, &initial_tchars);
 #endif
 	/* restore SIGWINCH handler */
 	signal(SIGWINCH, previous_SIGWINCH_handler);
