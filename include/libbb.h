@@ -481,6 +481,13 @@ off_t xlseek(int fd, off_t offset, int whence) FAST_FUNC;
 int xmkstemp(char *template) FAST_FUNC;
 off_t fdlength(int fd) FAST_FUNC;
 
+#ifdef __GNO__
+void unsetenv_wrapper(const char *var);
+int putenv_wrapper(char *string);
+# define unsetenv unsetenv_wrapper
+# define putenv putenv_wrapper
+#endif
+
 uoff_t FAST_FUNC get_volume_size_in_bytes(int fd,
 		const char *override,
 		unsigned override_units,

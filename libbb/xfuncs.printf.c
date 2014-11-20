@@ -335,12 +335,6 @@ char* FAST_FUNC xasprintf(const char *format, ...)
 	return string_ptr;
 }
 
-void FAST_FUNC xsetenv(const char *key, const char *value)
-{
-	if (setenv(key, value, 1))
-		bb_error_msg_and_die(bb_msg_memory_exhausted);
-}
-
 /* Handles "VAR=VAL" strings, even those which are part of environ
  * _right now_
  */
@@ -363,11 +357,49 @@ void FAST_FUNC bb_unsetenv(const char *var)
 	free(tp);
 }
 
-void FAST_FUNC bb_unsetenv_and_free(char *var)
+#ifdef __GNO__
+/* We wrap putenv and unsetenv functions to make them fully case-insensitive.
+ * The libc versions are case-insensitive with respect to the internal
+ * variable representation maintained by the kernel, but case-sensitive with
+ * respect to the environ array, with the result that the two representations
+ * may get out of sync.  We avoid this by always converting variable names to 
+ * lower case ourselves.  We'd also need to wrap setenv if it were used.
+ */
+# undef putenv
+int putenv_wrapper(char *string)
 {
-	bb_unsetenv(var);
-	free(var);
+	int name_len, i;
+	int retval;
+	char *string_lowercase = xstrdup(string);
+	
+	name_len = strcspn(string, "=");
+	for (i = 0; i < name_len; i++) {
+		string_lowercase[i] = tolower(string_lowercase[i]);
+	}
+	
+	/* We rely on putenv to copy its input string and not store the original,
+	 * which GNO does but POSIX-standard systems don't. */
+	retval = putenv(string_lowercase);
+	free(string_lowercase);
+	return retval;
 }
+# define putenv putenv_wrapper
+
+# undef unsetenv
+void unsetenv_wrapper(const char *var)
+{
+	char *c;
+	char *var_lowercase = xstrdup(var);
+	
+	for (c = var_lowercase; *c != 0; c++) {
+		*c = tolower(*c);
+	}
+	
+	unsetenv(var_lowercase);
+	free(var_lowercase);
+}
+# define unsetenv unsetenv_wrapper
+#endif
 
 // Die with an error message if we can't set gid.  (Because resource limits may
 // limit this user to a given number of processes, and if that fills up the

@@ -63,6 +63,7 @@ pid_t vfork_and_run(void (*fn)(void*) NORETURN, void *arg) {
 	 */
 	
 	long oldmask;
+	bool environPushed;
 	sig_t prev_alarm_sig;
 	pid_t pid;
 	kvmt *kvm_context;
@@ -71,6 +72,9 @@ pid_t vfork_and_run(void (*fn)(void*) NORETURN, void *arg) {
 	
 	/* Block all signals for now */
 	oldmask = sigblock(-1);
+	
+	/* Isolate child process's environment from parent */
+	environPushed = !environPush();
 	
 	pid = fork2(fork_thunk, 1024, 0, forked_child_name, 
 				(sizeof(fn) + sizeof(arg) + sizeof(oldmask) + 1) / 2, 
@@ -106,6 +110,8 @@ pid_t vfork_and_run(void (*fn)(void*) NORETURN, void *arg) {
 	
 ret:
 	sigsetmask(oldmask);
+	if (environPushed)
+		environPop();
 	return pid;
 }
 

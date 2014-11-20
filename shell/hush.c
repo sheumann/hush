@@ -375,6 +375,17 @@
 
 #define SPECIAL_VAR_SYMBOL   3
 
+/* Use case-insensitive variable name comparisons on GNO, consistent with
+ * GNO's internal handling of environment variables.
+ */
+#ifdef __GNO__
+# define varnamecmp strcasecmp
+# define varnamencmp strncasecmp
+#else
+# define varnamecmp strcmp
+# define varnamencmp strncmp
+#endif
+
 struct variable;
 
 static const char hush_version_str[] ALIGN1 = "HUSH_VERSION="BB_VER;
@@ -1860,7 +1871,7 @@ static struct variable **get_ptr_to_local_var(const char *name, unsigned len)
 
 	pp = &G.top_var;
 	while ((cur = *pp) != NULL) {
-		if (strncmp(cur->varstr, name, len) == 0 && cur->varstr[len] == '=')
+		if (varnamencmp(cur->varstr, name, len) == 0 && cur->varstr[len] == '=')
 			return pp;
 		pp = &cur->next;
 	}
@@ -1876,7 +1887,7 @@ static const char* FAST_FUNC get_local_var_value(const char *name)
 		char **cpp = G.expanded_assignments;
 		while (*cpp) {
 			char *cp = *cpp;
-			if (strncmp(cp, name, len) == 0 && cp[len] == '=')
+			if (varnamencmp(cp, name, len) == 0 && cp[len] == '=')
 				return cp + len + 1;
 			cpp++;
 		}
@@ -1886,11 +1897,11 @@ static const char* FAST_FUNC get_local_var_value(const char *name)
 	if (vpp)
 		return (*vpp)->varstr + len + 1;
 
-	if (strcmp(name, "PPID") == 0)
+	if (varnamecmp(name, "PPID") == 0)
 		return utoa(G.root_ppid);
 	// bash compat: UID? EUID?
 #if ENABLE_HUSH_RANDOM_SUPPORT
-	if (strcmp(name, "RANDOM") == 0)
+	if (varnamecmp(name, "RANDOM") == 0)
 		return utoa(next_random(&G.random_gen));
 #endif
 	return NULL;
@@ -1933,7 +1944,7 @@ static int set_local_var(char *str, int flg_export, int local_lvl, int flg_read_
 	name_len = eq_sign - str + 1; /* including '=' */
 	var_pp = &G.top_var;
 	while ((cur = *var_pp) != NULL) {
-		if (strncmp(cur->varstr, str, name_len) != 0) {
+		if (varnamencmp(cur->varstr, str, name_len) != 0) {
 			var_pp = &cur->next;
 			continue;
 		}
@@ -2010,7 +2021,7 @@ static int set_local_var(char *str, int flg_export, int local_lvl, int flg_read_
  exp:
 	if (flg_export == 1)
 		cur->flg_export = 1;
-	if (name_len == 4 && cur->varstr[0] == 'P' && cur->varstr[1] == 'S')
+	if (name_len == 4 && varnamencmp(cur->varstr, "PS", 2) == 0)
 		cmdedit_update_prompt();
 	if (cur->flg_export) {
 		if (flg_export == -1) {
@@ -2040,7 +2051,7 @@ static int unset_local_var_len(const char *name, int name_len)
 		return EXIT_SUCCESS;
 	var_pp = &G.top_var;
 	while ((cur = *var_pp) != NULL) {
-		if (strncmp(cur->varstr, name, name_len) == 0 && cur->varstr[name_len] == '=') {
+		if (varnamencmp(cur->varstr, name, name_len) == 0 && cur->varstr[name_len] == '=') {
 			if (cur->flg_read_only) {
 				bb_error_msg("%s: readonly variable", name);
 				return EXIT_FAILURE;
@@ -2048,7 +2059,7 @@ static int unset_local_var_len(const char *name, int name_len)
 			*var_pp = cur->next;
 			debug_printf_env(("%s: unsetenv '%s'\n", "unset_local_var_len", cur->varstr));
 			bb_unsetenv(cur->varstr);
-			if (name_len == 3 && cur->varstr[0] == 'P' && cur->varstr[1] == 'S')
+			if (name_len == 3 && varnamencmp(cur->varstr, "PS", 2) == 0)
 				cmdedit_update_prompt();
 			if (!cur->max_len)
 				free(cur->varstr);
@@ -5869,7 +5880,7 @@ static void re_execute_shell(char ***to_free, const char *s,
 	*pp++ = (char *) G.argv0_for_re_execing;
 	*pp++ = param_buf;
 	for (cur = G.top_var; cur; cur = cur->next) {
-		if (strcmp(cur->varstr, hush_version_str) == 0)
+		if (varnamecmp(cur->varstr, hush_version_str) == 0)
 			continue;
 		if (cur->flg_read_only) {
 			*pp++ = (char *) "-R";
@@ -8081,6 +8092,9 @@ int hush_main(int argc, char **argv)
 	INIT_G();
 	hush_exec_path = get_exec_path();
 #ifdef __GNO__
+	/* Make sure our environment is isolated from the parent process's */
+	if (environPush() == 0)
+		atexit(environPop);
 	environInit();
 #endif
 	if (EXIT_SUCCESS != 0) /* if EXIT_SUCCESS == 0, it is already done */
