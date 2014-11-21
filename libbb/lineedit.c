@@ -761,22 +761,27 @@ static char *username_path_completion(char *ud)
 	return tilde_name;
 }
 
+#define LINE_BUFF_SIZE 256
 /* ~use<tab> - find all users with this prefix.
  * Return the length of the prefix used for matching.
  */
 static NOINLINE unsigned complete_username(const char *ud)
 {
 	/* Using _r function to avoid pulling in static buffers */
-	char line_buff[256];
+	char *line_buff;
 	struct passwd pwd;
 	struct passwd *result;
 	unsigned userlen;
 
 	ud++; /* skip ~ */
 	userlen = strlen(ud);
+	
+	line_buff = malloc(LINE_BUFF_SIZE);
+	if (!line_buff)
+		goto ret;
 
 	setpwent();
-	while (!getpwent_r(&pwd, line_buff, sizeof(line_buff), &result)) {
+	while (!getpwent_r(&pwd, line_buff, LINE_BUFF_SIZE, &result)) {
 		/* Null usernames should result in all users as possible completions. */
 		if (/*!userlen || */ strncmp(ud, pwd.pw_name, userlen) == 0) {
 			add_match(xasprintf("~%s/", pwd.pw_name));
@@ -784,6 +789,8 @@ static NOINLINE unsigned complete_username(const char *ud)
 	}
 	endpwent();
 
+	free(line_buff);
+ ret:
 	return 1 + userlen;
 }
 # endif  /* FEATURE_USERNAME_COMPLETION */
@@ -1379,9 +1386,10 @@ static void save_command_ps_at_cur_history(void)
 
 # if ENABLE_UNICODE_SUPPORT
 		{
-			char tbuf[MAX_LINELEN];
-			save_string(tbuf, sizeof(tbuf));
+			char *tbuf = xmalloc(MAX_LINELEN);
+			save_string(tbuf, MAX_LINELEN);
 			state->history[cur] = xstrdup(tbuf);
+			free(tbuf);
 		}
 # else
 		state->history[cur] = xstrdup(command_ps);
@@ -1444,7 +1452,7 @@ static void free_line_input_t(line_input_t *n)
 /* state->flags is already checked to be nonzero */
 static void load_history(line_input_t *st_parm)
 {
-	char *temp_h[MAX_HISTORY];
+	char **temp_h;
 	char *line;
 	FILE *fp;
 	unsigned idx, i, line_len;
@@ -1461,7 +1469,8 @@ static void load_history(line_input_t *st_parm)
 		}
 
 		/* fill temp_h[], retaining only last MAX_HISTORY lines */
-		memset(temp_h, 0, sizeof(temp_h));
+		temp_h = xmalloc(sizeof(char*) * MAX_HISTORY);
+		memset(temp_h, 0, sizeof(char*) * MAX_HISTORY);
 		idx = 0;
 		st_parm->cnt_history_in_file = 0;
 		while ((line = xmalloc_fgetline(fp)) != NULL) {
@@ -1503,6 +1512,8 @@ static void load_history(line_input_t *st_parm)
 		st_parm->cnt_history = i;
 		if (ENABLE_FEATURE_EDITING_SAVE_ON_EXIT)
 			st_parm->cnt_history_in_file = i;
+		
+		free(temp_h);
 	}
 }
 
@@ -2197,6 +2208,8 @@ static int isrtl_str(void)
 	/* 0x80000000 bit flags KEYCODE_xxx */
 
 #if ENABLE_FEATURE_REVERSE_SEARCH
+
+#define MATCH_BUF_SIZE 128
 /* Mimic readline Ctrl-R reverse history search.
  * When invoked, it shows the following prompt:
  * (reverse-i-search)'': user_input [cursor pos unchanged by Ctrl-R]
@@ -2209,12 +2222,14 @@ static int isrtl_str(void)
  */
 static int32_t reverse_i_search(void)
 {
-	char match_buf[128]; /* for user input */
+	char *match_buf; /* for user input */
 	char read_key_buffer[KEYCODE_BUFFER_SIZE];
 	const char *matched_history_line;
 	const char *saved_prompt;
 	unsigned saved_prmt_len;
 	int32_t ic;
+	
+	match_buf = xmalloc(MATCH_BUF_SIZE);
 
 	matched_history_line = NULL;
 	read_key_buffer[0] = 0;
@@ -2269,12 +2284,12 @@ static int32_t reverse_i_search(void)
 				int len = wcrtomb(buf, ic, &mbstate);
 				if (len > 0) {
 					buf[len] = '\0';
-					if (match_buf_len + len < sizeof(match_buf))
+					if (match_buf_len + len < MATCH_BUF_SIZE)
 						strcpy(match_buf + match_buf_len, buf);
 				}
 			} else
 #endif
-			if (match_buf_len < sizeof(match_buf) - 1) {
+			if (match_buf_len < MATCH_BUF_SIZE - 1) {
 				match_buf[match_buf_len] = ic;
 				match_buf[match_buf_len + 1] = '\0';
 			}
@@ -2322,6 +2337,8 @@ static int32_t reverse_i_search(void)
 	cmdedit_prompt = saved_prompt;
 	cmdedit_prmt_len = saved_prmt_len;
 	redraw(cmdedit_y, command_len - cursor);
+	
+	free(match_buf);
 
 	return ic;
 }
