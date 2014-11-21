@@ -43,6 +43,11 @@ static int cmp_func(const void * a, const void * b)
 #endif
 }
 
+static int is_directory(const char *path) {
+	struct stat statr;
+	return !stat(path, &statr) && S_ISDIR(statr.st_mode);
+}
+
 
 /* Like `glob', but PATTERN is a final pathname component,
    and matches are searched for in DIRECTORY.
@@ -107,8 +112,7 @@ static int glob_in_dir(const char *pattern, const char *directory, int flags,
 				goto memory_error;
 			build_fullname(ptr, directory, ep->d_name);
 			if (flags & GLOB_ONLYDIR) {
-				struct stat statr;
-				if (stat(ptr, &statr) || !S_ISDIR(statr.st_mode))
+				if (!is_directory(ptr))
 					continue;
 			}
 			if (fnmatch(pattern, ep->d_name, fnm_flags) == 0)
@@ -156,7 +160,6 @@ int glob(const char *pattern, int flags, int (*errfunc)(const char * epath, int 
 	char * filename;
 	char * dirname;
 	size_t oldcount;
-	struct stat statr;
 
 	size_t i; /* tmp variables are declared here to save a bit of object space */
 	int j, k;    /* */
@@ -321,7 +324,7 @@ int glob(const char *pattern, int flags, int (*errfunc)(const char * epath, int 
 			if (flags & GLOB_NOCHECK)
 			{
 				for (i = 0; i < dirs.gl_pathc; i++) {
-					if (stat(dirs.gl_pathv[i], &statr) || !S_ISDIR(statr.st_mode))
+					if (!is_directory(dirs.gl_pathv[i]))
 						continue;
 
 					/* stat is okay, we will add the entry, but before let's resize the pathv */
@@ -358,7 +361,7 @@ int glob(const char *pattern, int flags, int (*errfunc)(const char * epath, int 
 
 	if (flags & GLOB_MARK) {
 		for (i = oldcount; i < pglob->gl_pathc + pglob->gl_offs; i++)
-			if (!stat(pglob->gl_pathv[i], &statr) && S_ISDIR(statr.st_mode)) {
+			if (is_directory(pglob->gl_pathv[i])) {
 				size_t len = strlen(pglob->gl_pathv[i]) + 2;
 				ptr = realloc(pglob->gl_pathv[i], len);
 				if (ptr == NULL) {
