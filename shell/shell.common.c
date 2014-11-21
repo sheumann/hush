@@ -127,6 +127,11 @@ shell_builtin_read(void FAST_FUNC (*setvar)(const char *name, const char *val),
 		fd = bb_strtou(opt_u, NULL, 10);
 		if (fd < 0 || errno)
 			return "invalid file descriptor";
+#ifdef __GNO__
+		/* Map Unix standard stdin/stdout/stderr fds to GNO ones */
+		if (fd < 3)
+			fd++;
+#endif
 	}
 
 	if (opt_p && isatty(fd)) {

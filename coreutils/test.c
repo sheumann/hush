@@ -782,8 +782,18 @@ static number_t primary(enum token n)
 			unnest_msg_and_return(args[0][0] == '\0', ("<primary"));
 		if (n == STRNZ)
 			unnest_msg_and_return(args[0][0] != '\0', ("<primary"));
-		if (n == FILTT)
-			unnest_msg_and_return(isatty(getn(*args)), ("<primary: isatty(%s)", *args));
+		if (n == FILTT) {
+			/* Map fds for stdin/stdout/stderr from the Unix fds to GNO ones.
+			 * Existing GNO /bin/test doesn't map fds here, but we prioritize 
+			 * compatibility with Unix scripts and do the remapping.
+			 */
+			number_t fd = getn(*args);
+#ifdef __GNO__
+			if (fd >= 0 && fd <= 2)
+				fd++;
+#endif
+			unnest_msg_and_return(isatty(fd), ("<primary: isatty(%s)", *args));
+		}
 		unnest_msg_and_return(filstat(*args, n), ("<primary: filstat(%s)", *args));
 	}
 

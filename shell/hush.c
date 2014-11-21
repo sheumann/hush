@@ -495,11 +495,11 @@ static const struct {
 	signed char default_fd;
 	char descrip[3];
 } redir_table[] = {
-	{ O_RDONLY,                  0, "<"  },
-	{ O_CREAT|O_TRUNC|O_WRONLY,  1, ">"  },
-	{ O_CREAT|O_APPEND|O_WRONLY, 1, ">>" },
-	{ O_CREAT|O_RDWR,            1, "<>" },
-	{ O_RDONLY,                  0, "<<" },
+	{ O_RDONLY,                  STDIN_FILENO, "<"  },
+	{ O_CREAT|O_TRUNC|O_WRONLY,  STDOUT_FILENO, ">"  },
+	{ O_CREAT|O_APPEND|O_WRONLY, STDOUT_FILENO, ">>" },
+	{ O_CREAT|O_RDWR,            STDOUT_FILENO, "<>" },
+	{ O_RDONLY,                  STDIN_FILENO, "<<" },
 /* Should not be needed. Bogus default_fd helps in debugging */
 /*	{ O_RDONLY,                 77, "<<" }, */
 };
@@ -3603,7 +3603,15 @@ static int parse_redirect(struct parse_context *ctx,
 	/* redir->next = NULL; */
 	/* redir->rd_filename = NULL; */
 	redir->rd_type = style;
-	redir->rd_fd = (fd == -1) ? redir_table[style].default_fd : fd;
+	
+	/* On GNO, we map fd 0/1/2 in scripts to stdin/stdout/stderr 
+	 * to preserve compatibility with Unix shell scripts. */
+	redir->rd_fd = (fd == -1) ? redir_table[style].default_fd : 
+#ifndef __GNO__
+								fd;
+#else
+								(fd < 3 ? fd + 1 : fd);
+#endif
 
 	debug_printf_parse(("redirect type %d %s\n", redir->rd_fd,
 				redir_table[style].descrip));
@@ -3613,6 +3621,10 @@ static int parse_redirect(struct parse_context *ctx,
 		/* Erik had a check here that the file descriptor in question
 		 * is legit; I postpone that to "run time"
 		 * A "-" representation of "close me" shows up as a -3 here */
+#ifdef __GNO__
+		if (redir->rd_dup >= 0 && redir->rd_dup <= 2)
+			redir->rd_dup++;
+#endif
 		debug_printf_parse(("duplicating redirect '%d>&%d'\n",
 				redir->rd_fd, redir->rd_dup));
 	} else {
