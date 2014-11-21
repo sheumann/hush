@@ -32,7 +32,6 @@ SRCS = \
 	libbb/full.write.c \
 	libbb/bb.qsort.c \
 	libbb/xrealloc.vec.c \
-	libbb/copyfd.c \
 	libbb/read.key.c \
 	libbb/unicode.c \
 	libbb/safe.write.c \

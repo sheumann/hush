@@ -27,7 +27,6 @@ LIBBB_B_SRC = \
 	libbb/bb.strtonum.c \
 	libbb/full.write.c \
 	libbb/bb.qsort.c \
-	libbb/copyfd.c \
 	libbb/get.line.c \
 	libbb/conc.pathfile.c \
 	libbb/last.char.is.c \
