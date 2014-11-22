@@ -5752,6 +5752,74 @@ static char **expand_assignments(char **argv, int count)
 segment "HUSH_C____";
 #endif
 
+/* When we re-execute the shell, we pass certain elements of our state to the
+ * child shell as arguments.  To ensure these are treated as single arguments 
+ * by the ORCA/C command line parser in the child shell, we "encode" them by
+ * translating potentially problematic characters to other ones with the high
+ * bit set (which hopefully aren't used), and "decoding" them in the child
+ * shell (and in the parent after the child has exec'd or exited).
+ */
+#ifdef __GNO__
+static char *encode_arg(char *arg)
+{
+	char *c;
+	for (c = arg; *c != 0; c++) {
+		switch (*c) {
+		case '"':	*c = 253;	break;
+		case ' ':	*c = 254;	break;
+		case '\t':	*c = 255;	break;
+		default:	break;
+		}
+	}
+	return arg;
+}
+
+static char *decode_arg(char *arg)
+{
+	char *c;
+	for (c = arg; *c != 0; c++) {
+		switch (*c) {
+		case 253:	*c = '"';	break;
+		case 254:	*c = ' ';	break;
+		case 255:	*c = '\t';	break;
+		default:	break;
+		}
+	}
+	return arg;
+}
+
+static void code_subshell_args(char *(*coder_fn)(char *))
+{
+	struct variable *cur;
+# if ENABLE_HUSH_FUNCTIONS
+	struct function *funcp;
+# endif
+
+	for (cur = G.top_var; cur; cur = cur->next) {
+		if (cur->flg_read_only || !cur->flg_export) {
+			coder_fn(cur->varstr);
+		}
+	}
+# if ENABLE_HUSH_FUNCTIONS
+	for (funcp = G.top_func; funcp; funcp = funcp->next) {
+		coder_fn(funcp->name);
+		coder_fn(funcp->body_as_string);
+	}
+# endif
+}
+
+# define encode_subshell_args() code_subshell_args(encode_arg)
+# define decode_subshell_args() code_subshell_args(decode_arg)
+
+#else /* !defined(__GNO__) */
+
+# define encode_arg(x) (x)
+# define decode_arg(x) (x)
+# define encode_subshell_args() do {} while (0)
+# define decode_subshell_args() do {} while (0)
+
+#endif
+
 static void switch_off_special_sigs(unsigned mask)
 {
 	unsigned sig = 0;
@@ -5898,6 +5966,7 @@ static void re_execute_shell(char ***to_free, const char *s,
 	*to_free = argv = pp = xzalloc(sizeof(argv[0]) * cnt);
 	*pp++ = (char *) G.argv0_for_re_execing;
 	*pp++ = param_buf;
+	encode_subshell_args();
 	for (cur = G.top_var; cur; cur = cur->next) {
 		if (varnamecmp(cur->varstr, hush_version_str) == 0)
 			continue;
@@ -6077,6 +6146,7 @@ static FILE *generate_stream_from_string(const char *s, pid_t *pid_p)
 # endif
 	enable_restore_tty_pgrp_on_exit();
 # if !BB_MMU
+	decode_subshell_args();
 	free(to_free);
 # endif
 	close(channel[1]);
@@ -7584,6 +7654,7 @@ static NOINLINE int run_pipe(struct pipe *pi)
 		enable_restore_tty_pgrp_on_exit();
 #if !BB_MMU
 		/* Clean up after vforked child */
+		decode_subshell_args();
 		free(nommu_save.argv);
 		free(nommu_save.argv_from_re_execing);
 		unset_vars(nommu_save.new_env);
@@ -8414,14 +8485,14 @@ int hush_main(int argc, char **argv)
 		}
 		case 'R':
 		case 'V':
-			set_local_var(xstrdup(optarg), /*exp:*/ 0, /*lvl:*/ 0, /*ro:*/ opt == 'R');
+			set_local_var(xstrdup(decode_arg(optarg)), /*exp:*/ 0, /*lvl:*/ 0, /*ro:*/ opt == 'R');
 			break;
 # if ENABLE_HUSH_FUNCTIONS
 		case 'F': {
-			struct function *funcp = new_function(optarg);
+			struct function *funcp = new_function(decode_arg(optarg));
 			/* funcp->name is already set to optarg */
 			/* funcp->body is set to NULL. It's a special case. */
-			funcp->body_as_string = argv[optind];
+			funcp->body_as_string = decode_arg(argv[optind]);
 			optind++;
 			break;
 		}
