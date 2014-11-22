@@ -481,6 +481,8 @@ off_t xlseek(int fd, off_t offset, int whence) FAST_FUNC;
 int xmkstemp(char *template) FAST_FUNC;
 off_t fdlength(int fd) FAST_FUNC;
 
+int tc_set_to_my_pgrp(int fd);
+
 #ifdef __GNO__
 void unsetenv_wrapper(const char *var);
 int putenv_wrapper(char *string);

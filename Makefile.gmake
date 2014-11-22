@@ -51,7 +51,8 @@ SRCS = \
 	libbb/mempcpy.c \
 	libbb/vfork.and.run.c \
 	libbb/poll.c \
-	libbb/get.exec.path.c
+	libbb/get.exec.path.c \
+	libbb/pgrp.c
 OBJS = $(SRCS:.c=.o)
 
 INCLUDES = -I include -I shell -I libbb

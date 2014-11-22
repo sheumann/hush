@@ -51,7 +51,8 @@ LIBBB_C_SRC = \
 	libbb/s.gethostname.c \
 	libbb/safe.poll.c \
 	libbb/parse.mode.c \
-	libbb/poll.c 
+	libbb/poll.c \
+	libbb/pgrp.c
 
 LIBBB_D_SRC = \
 	libbb/xfuncs.printf.c \

@@ -109,6 +109,18 @@
 # define PIPE_BUF 4096  /* amount of buffering in a pipe */
 #endif
 
+#ifdef __GNO__
+# define setpgid setpgid_is_broken_on_gno_206
+/* setpgid is broken in GNO 2.0.6: It doesn't actually change the pgrp for 
+ * the process (but it does update the pgrp reference counts, effectively
+ * corrupting them).  Don't use it.
+ *
+ * Another bug related to pgrp functions:
+ * tctpgrp() and settpgrp() don't set a return value on success, so they
+ * may return random garbage instead of 0.  Hopefully it can't be -1...
+ */
+#endif
+
 //config:config HUSH
 //config:	bool "hush"
 //config:	default y
@@ -1639,12 +1651,7 @@ static void sigexit(int sig)
 		 * Mostly paranoid measure, to prevent infinite SIGTTOU.
 		 */
 		sigprocmask_allsigs(SIG_BLOCK);
-# ifndef __GNO__
 		tcsetpgrp(G_interactive_fd, G_saved_tty_pgrp);
-# else
-		setpgid(getpid(), G_saved_tty_pgrp);
-		tctpgrp(G_interactive_fd, getpid());
-# endif
 	}
 
 	/* Not a signal, just exit */
@@ -7145,11 +7152,7 @@ static int checkjobs_and_fg_shell(struct pipe *fg_pipe)
 		/* Job finished, move the shell to the foreground */
 		p = getpgrp(); /* our process group id */
 		debug_printf_jobs(("fg'ing ourself: getpgrp()=%d\n", (int)p));
-#ifndef __GNO__
-		tcsetpgrp(G_interactive_fd, p);
-#else
-		tctpgrp(G_interactive_fd, getpid());
-#endif
+		tc_set_to_my_pgrp(G_interactive_fd);
 	}
 	return rcode;
 }
@@ -7531,11 +7534,12 @@ static NOINLINE int run_pipe(struct pipe *pi)
 		} else {
 			pi->alive_cmds++;
 #if ENABLE_HUSH_JOB
+# ifndef __GNO__
 			/* Second and next children need to know pid of first one */
 			if (pi->pgrp < 0)
-# ifndef __GNO__
 				pi->pgrp = command->pid;
 # else
+			if (pi->pgrp != _getpgrp(command->pid))
 				pi->pgrp = _getpgrp(command->pid);
 # endif
 #endif
@@ -7559,37 +7563,7 @@ static NOINLINE int run_pipe(struct pipe *pi)
 	debug_printf_exec(("run_pipe return -1 (%u children started)\n", pi->alive_cmds));
 	return -1;
 }
-	
 
-/* Get a new process group ID and set our pgrp to it. */
-#ifndef __GNO__
-static pid_t new_pgrp(int fdtty)
-{
-	pid_t pgrp = getpid();
-	setpgid(0, pgrp);
-	return pgrp;
-}
-#else
-/* On GNO we can't just use our pid--pgrps have a separate, smaller range
- * and need to be explicitly allocated with tcnewpgrp. */
-static pid_t new_pgrp(int fdtty)
-{
-	int result;
-	
-	result = tcnewpgrp(fdtty);
-	if (result != 0)
-		return -1;
-	
-	settpgrp(fdtty);
-	
-	/* Set tty back to parent's pgrp for now. This may be what we want if
-	 * this job is backgrounded.  Otherwise, we'll re-set it to the new
-	 * pgrp later. */
-	tctpgrp(fdtty, getppid());
-	
-	return getpgrp();
-}
-#endif
 
 #ifdef __ORCAC__
 # pragma databank 1
@@ -7607,20 +7581,41 @@ static void forked_child(void *args_struct)
 	if (G.run_list_level == 1 && G_interactive_fd) {
 		pid_t pgrp;
 		pgrp = (*args->pi_p)->pgrp;
+# ifndef __GNO__
 		if (pgrp < 0) /* true for 1st process only */
-			pgrp = new_pgrp(G_interactive_fd);
+			pgrp = getpid();
 		if (setpgid(0, pgrp) == 0
 		 && (*args->pi_p)->followup != PIPE_BG
 		 && G_saved_tty_pgrp /* we have ctty */
 		) {
 			/* We do it in *every* child, not just first,
 			 * to avoid races */
-# ifndef __GNO__
-			tcsetpgrp(G_interactive_fd, pgrp);
-# else
-			tctpgrp(G_interactive_fd, getpid());
-# endif
+			tc_set_to_my_pgrp(G_interactive_fd);
 		}
+# else
+		if (pgrp < 0) {
+			tcnewpgrp(G_interactive_fd);
+		} else {
+			int i;
+			for (i = 0; i < (*args->pi_p)->num_cmds; i++) {
+				pid_t pid = (*args->pi_p)->cmds[i].pid;
+				if (pid != 0 && _getpgrp(pid) == pgrp && tctpgrp(G_interactive_fd, pid) != -1)
+					goto tty_has_pgrp;
+			}
+			/* If none of the other processes in the pipe has the right pgrp,
+			 * (because they exited or changed their pgrp), allocate a new one. */
+			if (getpgrp() != pgrp)
+				tcnewpgrp(G_interactive_fd);
+		}
+
+ tty_has_pgrp:
+		settpgrp(G_interactive_fd);
+		
+		/* If the terminal shouldn't really be set to the new pgrp 
+		 * (e.g. because the pipe is backgrounded), set it back to the parent. */
+		if ((*args->pi_p)->followup == PIPE_BG || !G_saved_tty_pgrp)
+			tctpgrp(G_interactive_fd, getppid());
+# endif
 	}
 #endif
 	if ((*args->pi_p)->alive_cmds == 0 && (*args->pi_p)->followup == PIPE_BG) {
@@ -8508,7 +8503,7 @@ int hush_main(int argc, char **argv)
 		if (G_saved_tty_pgrp) {
 			/* tcnewpgrp() should generate SIGTTOU if we're not in the
 			 * foreground, having an effect similar to the loop in the
-			 * original code. */
+			 * original code (but I think it actually doesn't). */
 			tcnewpgrp(G_interactive_fd);
 			install_fatal_sighandlers();
 			install_special_sighandlers();
@@ -8694,12 +8689,7 @@ static int FAST_FUNC builtin_exec(char **argv)
 	/* Careful: we can end up here after [v]fork. Do not restore
 	 * tty pgrp then, only top-level shell process does that */
 	if (G_saved_tty_pgrp && getpid() == G.root_pid) {
-#ifndef __GNO__
 		tcsetpgrp(G_interactive_fd, G_saved_tty_pgrp);
-#else
-		setpgid(getpid(), G_saved_tty_pgrp);
-		tctpgrp(G_interactive_fd, getpid());
-#endif
 	}
 
 	/* TODO: if exec fails, bash does NOT exit! We do.
@@ -9037,7 +9027,7 @@ static int FAST_FUNC builtin_fg_bg(char **argv)
 		 */
 		for (i = 0; i < pi->num_cmds; i++) {
 			pid_t pid = pi->cmds[i].pid;
-			if (pid != 0 && tctpgrp(G_interactive_fd, pid) == 0)
+			if (pid != 0 && tctpgrp(G_interactive_fd, pid) != -1)
 				break;
 		}
 # endif
