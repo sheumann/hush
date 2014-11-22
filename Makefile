@@ -36,7 +36,8 @@ LIBBB_B_SRC = \
 	libbb/messages.c \
 	libbb/bb.basename.c \
 	libbb/mempcpy.c \
-	libbb/get.exec.path.c
+	libbb/get.exec.path.c \
+	libbb/exec.gno.c
 
 LIBBB_C_SRC = \
 	libbb/perror.msg.c \
