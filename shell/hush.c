@@ -6676,6 +6676,69 @@ static void exec_builtin(char ***to_free,
 }
 
 
+#ifdef __GNO__
+/* We use our own implementation of execvp because we need to
+ * do some things that libc's version doesn't:
+ * 1) Quote arguments containing spaces or tabs
+ * 2) Execute shell scripts in a shell (TODO)
+ */
+#define execvp execvp_gno
+static int execvp_gno(const char *file, char *const argv[])
+{
+	int result;
+	char *args;
+	char *path;
+	
+	size_t argslen = 0;
+	int i;
+	char *nextarg;
+	
+	path = buildPath(file);
+	if (path == NULL) {
+		errno = ENOENT;
+		return -1;
+	}
+	
+	for (i = 0; argv[i] != NULL; i++) {
+		/* 3 bytes extra for space (or terminating 0) and possible quotes */
+		argslen += strlen(argv[i]) + 3;
+	}
+	
+	nextarg = args = malloc(argslen);
+	if (args == NULL) {
+		free(path);
+		errno = ENOMEM;
+		return -1;
+	}
+	
+	/* Copy arguments into a single string, quoting ones that contain spaces
+	 * or tabs.  This approach won't give the right result in all cases
+	 * (e.g. when the argument starts with " or contains both spaces and "),
+	 * but it's about the best we can do, since we're dependent on the 
+	 * argument-parsing code in the target program.
+	 */
+	for (i = 0; argv[i] != NULL; i++) {
+		bool has_space = (strpbrk(argv[i], " \t") != NULL);
+
+		if (has_space)
+			*nextarg++ = '"';
+		strcpy(nextarg, argv[i]);
+		nextarg += strlen(argv[i]);
+		if (has_space)
+			*nextarg++ = '"';
+		*nextarg++ = ' ';
+	}
+	*(nextarg - 1) = 0;
+	
+	result = _execve(path, args);
+	
+	/* error case */
+	free(path);
+	free(args);
+	return result;
+}
+#endif
+
 static void execvp_or_die(char **argv) NORETURN;
 static void execvp_or_die(char **argv)
 {
