@@ -6172,7 +6172,7 @@ static void xforked_child(void *args_struct) {
 		, SIG_IGN);
 	CLEAR_RANDOM_T(&G.random_gen); /* or else $RANDOM repeats in child */
 	close(args->channel[0]); /* NB: close _first_, then move fd! */
-	xmove_fd(args->channel[1], 1);
+	xmove_fd(args->channel[1], STDOUT_FILENO);
 	/* Prevent it from trying to handle ctrl-z etc */
 	IF_HUSH_JOB(G.run_list_level = 1;)
 	/* Awful hack for `trap` or $(trap).
