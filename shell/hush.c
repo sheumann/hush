@@ -882,7 +882,7 @@ static struct globals G;
 struct lineedit_statics;
 struct lineedit_statics *lineedit_ptr_to_statics;
 
-static char *hush_exec_path;
+char *hush_exec_path;
 
 
 /* Function prototypes for builtins */
