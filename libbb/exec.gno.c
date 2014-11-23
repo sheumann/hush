@@ -6,7 +6,7 @@
 /* We use our own implementations of execv* because we need to
  * do some things that libc's version doesn't:
  * 1) Quote arguments containing spaces or tabs
- * 2) Execute shell scripts in a shell (TODO)
+ * 2) Execute shell scripts in a shell
  */
  
 extern char *hush_exec_path;
@@ -79,7 +79,7 @@ int execve(const char *path, char *const *argv, char *const *envp)
  	int interpreter_arg_offset;
  	char *interpreter_arg = NULL;
  	int narg, i;
- 	char **new_argv = NULL;
+ 	char **new_argv;
 	
 	args = build_args(argv);
 	if (args == NULL)
@@ -108,7 +108,6 @@ int execve(const char *path, char *const *argv, char *const *envp)
 	}
 	strcpy(path_gs->text, path);
 	path_gs->length = pathlen;
-	
 	fileInfoRec.pCount = 4;
 	fileInfoRec.pathname = path_gs;
 	GetFileInfoGS(&fileInfoRec);
@@ -117,6 +116,9 @@ int execve(const char *path, char *const *argv, char *const *envp)
 		errno = EACCES;
 		goto error_ret;
 	}
+	
+	free(path_gs);
+	path_gs = NULL;
 	
 	script_fd = open(path, O_RDONLY);
 	if (script_fd == -1)
@@ -143,6 +145,11 @@ int execve(const char *path, char *const *argv, char *const *envp)
 		goto error_ret;
 	}
 	interpreter_cmd[hashbang_line_len] = '\0';
+	if (interpreter_cmd[0] == '\0') {
+		/* interpreter command can't be empty string */
+		errno = ENOEXEC;
+		goto error_ret;
+	}
 	
 	interpreter_arg_offset = strcspn(interpreter_cmd, " \t");
 	if (interpreter_cmd[interpreter_arg_offset] != '\0') {
@@ -155,7 +162,6 @@ int execve(const char *path, char *const *argv, char *const *envp)
 	}
 	
  exec_interpreter:
- 	
  	narg = 3;	/* interpreter, script file, and final NULL */
  	if (interpreter_arg);
  		narg++;
@@ -180,6 +186,7 @@ int execve(const char *path, char *const *argv, char *const *envp)
  	new_argv[narg] = NULL;
 	
 	args = build_args(new_argv);
+	free(new_argv);
 	if (args == NULL)
 		goto error_ret;
 	
@@ -187,7 +194,6 @@ int execve(const char *path, char *const *argv, char *const *envp)
 	
  error_ret:
 	/* error case */
-	free(new_argv);
 	free(path_gs);
 	free(args);
 	return -1;
