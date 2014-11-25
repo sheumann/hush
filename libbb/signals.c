@@ -21,10 +21,10 @@ int FAST_FUNC sigprocmask_allsigs(int how)
 	return sigprocmask(how, &set, NULL);
 }
 
-void FAST_FUNC bb_signals(int sigs, void (*f)(int))
+void FAST_FUNC bb_signals(long int sigs, sig_t f)
 {
 	int sig_no = 0;
-	int bit = 1;
+	long int bit = 1;
 
 	while (sigs) {
 		if (sigs & bit) {

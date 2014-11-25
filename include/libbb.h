@@ -403,41 +403,7 @@ char *xmalloc_follow_symlinks(const char *path) FAST_FUNC RETURNS_MALLOC;
 void *mempcpy(void *dst, const void *src, size_t len);
 
 
-enum {
-	/* bb_signals(BB_FATAL_SIGS, handler) catches all signals which
-	 * otherwise would kill us, except for those resulting from bugs:
-	 * SIGSEGV, SIGILL, SIGFPE.
-	 * Other fatal signals not included (TODO?):
-	 * SIGBUS   Bus error (bad memory access)
-	 * SIGPOLL  Pollable event. Synonym of SIGIO
-	 * SIGPROF  Profiling timer expired
-	 * SIGSYS   Bad argument to routine
-	 * SIGTRAP  Trace/breakpoint trap
-	 *
-	 * The only known arch with some of these sigs not fitting
-	 * into 32 bits is parisc (SIGXCPU=33, SIGXFSZ=34, SIGSTKFLT=36).
-	 * Dance around with long long to guard against that...
-	 */
-	BB_FATAL_SIGS = (int)(0
-		+ (1LL << SIGHUP)
-		+ (1LL << SIGINT)
-		+ (1LL << SIGTERM)
-		+ (1LL << SIGPIPE)   // Write to pipe with no readers
-		+ (1LL << SIGQUIT)   // Quit from keyboard
-		+ (1LL << SIGABRT)   // Abort signal from abort(3)
-		+ (1LL << SIGALRM)   // Timer signal from alarm(2)
-		+ (1LL << SIGVTALRM) // Virtual alarm clock
-		+ (1LL << SIGXCPU)   // CPU time limit exceeded
-		+ (1LL << SIGXFSZ)   // File size limit exceeded
-		+ (1LL << SIGUSR1)   // Yes kids, these are also fatal!
-		+ (1LL << SIGUSR2)
-		+ 0)
-};
-void bb_signals(int sigs, void (*f)(int)) FAST_FUNC;
-/* Unlike signal() and bb_signals, sets handler with sigaction()
- * and in a way that while signal handler is run, no other signals
- * will be blocked; syscalls will not be restarted: */
-void bb_signals_recursive_norestart(int sigs, void (*f)(int)) FAST_FUNC;
+void bb_signals(long int sigs, sig_t f) FAST_FUNC;
 /* syscalls like read() will be interrupted with EINTR: */
 void signal_no_SA_RESTART_empty_mask(int sig, void (*handler)(int)) FAST_FUNC;
 /* syscalls like read() won't be interrupted (though select/poll will be): */

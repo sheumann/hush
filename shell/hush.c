@@ -844,9 +844,9 @@ struct globals {
 	 * The rest is cleared right before execv syscalls.
 	 * Other than these two times, never modified.
 	 */
-	unsigned special_sig_mask;
+	unsigned long special_sig_mask;
 #if ENABLE_HUSH_JOB
-	unsigned fatal_sig_mask;
+	unsigned long fatal_sig_mask;
 # define G_fatal_sig_mask G.fatal_sig_mask
 #else
 # define G_fatal_sig_mask 0
@@ -1562,19 +1562,20 @@ void _exit_wrapper(int status) {
  * are set to the default actions". bash interprets it so that traps which
  * are set to '' (ignore) are NOT reset to defaults. We do the same.
  */
-enum {
-	SPECIAL_INTERACTIVE_SIGS = 0
-		| (1 << SIGTERM)
-		| (1 << SIGINT)
-		| (1 << SIGHUP)
-		,
-	SPECIAL_JOBSTOP_SIGS = 0
+#define SPECIAL_INTERACTIVE_SIGS  (0 \
+		| (1L << SIGTERM) \
+		| (1L << SIGINT) \
+		| (1L << SIGHUP) \
+		)
 #if ENABLE_HUSH_JOB
-		| (1 << SIGTTIN)
-		| (1 << SIGTTOU)
-		| (1 << SIGTSTP)
+# define SPECIAL_JOBSTOP_SIGS  (0 \
+		| (1L << SIGTTIN) \
+		| (1L << SIGTTOU) \
+		| (1L << SIGTSTP) \
+		)
+#else
+# define SPECIAL_JOBSTOP_SIGS  0
 #endif
-};
 
 static void record_pending_signo(int sig)
 {
@@ -1691,8 +1692,8 @@ static void sigexit_wrapper_gno(int sig, int code)
 static sighandler_t pick_sighandler(unsigned sig)
 {
 	sighandler_t handler = SIG_DFL;
-	if (sig < sizeof(unsigned)*8) {
-		unsigned sigmask = (1 << sig);
+	if (sig < sizeof(unsigned long)*8) {
+		unsigned long sigmask = (1L << sig);
 
 #if ENABLE_HUSH_JOB
 		/* is sig fatal? */
@@ -5818,7 +5819,7 @@ static void code_subshell_args(char *(*coder_fn)(char *))
 
 #endif
 
-static void switch_off_special_sigs(unsigned mask)
+static void switch_off_special_sigs(unsigned long mask)
 {
 	unsigned sig = 0;
 	while ((mask >>= 1) != 0) {
@@ -5849,7 +5850,7 @@ static void reset_traps_to_defaults(void)
 	 * after fork (not vfork, NOMMU doesn't use this function).
 	 */
 	unsigned sig;
-	unsigned mask;
+	unsigned long mask;
 
 	/* Child shells are not interactive.
 	 * SIGTTIN/SIGTTOU/SIGTSTP should not have special handling.
@@ -6164,9 +6165,9 @@ static void xforked_child(void *args_struct) {
 	 * SUSv3 says ctrl-Z should be ignored, ctrl-C should not.
 	 */
 	bb_signals(0
-		+ (1 << SIGTSTP)
-		+ (1 << SIGTTIN)
-		+ (1 << SIGTTOU)
+		+ (1L << SIGTSTP)
+		+ (1L << SIGTTIN)
+		+ (1L << SIGTTOU)
 		, SIG_IGN);
 	CLEAR_RANDOM_T(&G.random_gen); /* or else $RANDOM repeats in child */
 	close(args->channel[0]); /* NB: close _first_, then move fd! */
@@ -8070,7 +8071,7 @@ static int run_and_free_list(struct pipe *pi)
 }
 
 
-static void install_sighandlers(unsigned mask)
+static void install_sighandlers(unsigned long mask)
 {
 	sighandler_t old_handler;
 	unsigned sig = 0;
@@ -8099,10 +8100,10 @@ static void install_sighandlers(unsigned mask)
 /* Called a few times only (or even once if "sh -c") */
 static void install_special_sighandlers(void)
 {
-	unsigned mask;
+	unsigned long mask;
 
 	/* Which signals are shell-special? */
-	mask = (1 << SIGQUIT) | (1 << SIGCHLD);
+	mask = (1L << SIGQUIT) | (1L << SIGCHLD);
 	if (G_interactive_fd) {
 		mask |= SPECIAL_INTERACTIVE_SIGS;
 		if (G_saved_tty_pgrp) /* we have ctty, job control sigs work */
@@ -8121,26 +8122,26 @@ static void install_special_sighandlers(void)
 /* Set handlers to restore tty pgrp and exit */
 static void install_fatal_sighandlers(void)
 {
-	unsigned mask;
+	unsigned long mask;
 
 	/* We will restore tty pgrp on these signals */
 	mask = 0
-		+ (1 << SIGILL ) * HUSH_DEBUG
-		+ (1 << SIGFPE ) * HUSH_DEBUG
-		+ (1 << SIGBUS ) * HUSH_DEBUG
-		+ (1 << SIGSEGV) * HUSH_DEBUG
-		+ (1 << SIGTRAP) * HUSH_DEBUG
-		+ (1 << SIGABRT)
+		+ (1L << SIGILL ) * HUSH_DEBUG
+		+ (1L << SIGFPE ) * HUSH_DEBUG
+		+ (1L << SIGBUS ) * HUSH_DEBUG
+		+ (1L << SIGSEGV) * HUSH_DEBUG
+		+ (1L << SIGTRAP) * HUSH_DEBUG
+		+ (1L << SIGABRT)
 	/* bash 3.2 seems to handle these just like 'fatal' ones */
-		+ (1 << SIGPIPE)
-		+ (1 << SIGALRM)
+		+ (1L << SIGPIPE)
+		+ (1L << SIGALRM)
 	/* if we are interactive, SIGHUP, SIGTERM and SIGINT are special sigs.
 	 * if we aren't interactive... but in this case
 	 * we never want to restore pgrp on exit, and this fn is not called
 	 */
-		/*+ (1 << SIGHUP )*/
-		/*+ (1 << SIGTERM)*/
-		/*+ (1 << SIGINT )*/
+		/*+ (1L << SIGHUP )*/
+		/*+ (1L << SIGTERM)*/
+		/*+ (1L << SIGINT )*/
 	;
 	G_fatal_sig_mask = mask;
 
