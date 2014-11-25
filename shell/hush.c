@@ -642,7 +642,7 @@ struct parse_context {
 	smallint ctx_dsemicolon; /* ";;" seen */
 #endif
 	/* bitmask of FLAG_xxx, for figuring out valid reserved words */
-	int old_flag;
+	int32_t old_flag;
 	/* group we are enclosed in:
 	 * example: "if pipe1; pipe2; then pipe3; fi"
 	 * when we see "if" or "then", we malloc and copy current context,
@@ -3220,31 +3220,29 @@ struct reserved_combo {
 	char literal[6];
 	unsigned char res;
 	unsigned char assignment_flag;
-	int flag;
+	int32_t flag;
 };
-enum {
-	FLAG_END   = (1 << RES_NONE ),
+# define  FLAG_END   (1L << RES_NONE )
 # if ENABLE_HUSH_IF
-	FLAG_IF    = (1 << RES_IF   ),
-	FLAG_THEN  = (1 << RES_THEN ),
-	FLAG_ELIF  = (1 << RES_ELIF ),
-	FLAG_ELSE  = (1 << RES_ELSE ),
-	FLAG_FI    = (1 << RES_FI   ),
+#  define FLAG_IF    (1L << RES_IF   )
+#  define FLAG_THEN  (1L << RES_THEN )
+#  define FLAG_ELIF  (1L << RES_ELIF )
+#  define FLAG_ELSE  (1L << RES_ELSE )
+#  define FLAG_FI    (1L << RES_FI   )
 # endif
 # if ENABLE_HUSH_LOOPS
-	FLAG_FOR   = (1 << RES_FOR  ),
-	FLAG_WHILE = (1 << RES_WHILE),
-	FLAG_UNTIL = (1 << RES_UNTIL),
-	FLAG_DO    = (1 << RES_DO   ),
-	FLAG_DONE  = (1 << RES_DONE ),
-	FLAG_IN    = (1 << RES_IN   ),
+#  define FLAG_FOR   (1L << RES_FOR  )
+#  define FLAG_WHILE (1L << RES_WHILE)
+#  define FLAG_UNTIL (1L << RES_UNTIL)
+#  define FLAG_DO    (1L << RES_DO   )
+#  define FLAG_DONE  (1L << RES_DONE )
+#  define FLAG_IN    (1L << RES_IN   )
 # endif
 # if ENABLE_HUSH_CASE
-	FLAG_MATCH = (1 << RES_MATCH),
-	FLAG_ESAC  = (1 << RES_ESAC ),
+#  define FLAG_MATCH (1L << RES_MATCH)
+#  define FLAG_ESAC  (1L << RES_ESAC )
 # endif
-	FLAG_START = (1 << RES_XXXX )
-};
+# define  FLAG_START (1L << RES_XXXX )
 
 static const struct reserved_combo* match_reserved_word(o_string *word)
 {
@@ -3323,7 +3321,7 @@ static int reserved_word(o_string *word, struct parse_context *ctx)
 		*old = *ctx;   /* physical copy */
 		initialize_context(ctx);
 		ctx->stack = old;
-	} else if (/*ctx->ctx_res_w == RES_NONE ||*/ !(ctx->old_flag & (1 << r->res))) {
+	} else if (/*ctx->ctx_res_w == RES_NONE ||*/ !(ctx->old_flag & (1L << r->res))) {
 		syntax_error_at(word->data);
 		ctx->ctx_res_w = RES_SNTX;
 		return 1;
