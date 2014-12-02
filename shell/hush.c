@@ -8266,9 +8266,12 @@ int hush_main(int argc, char **argv)
 #if ENABLE_HUSH_BASH_COMPAT
 	/* Set (but not export) HOSTNAME unless already set */
 	if (!get_local_var_value("HOSTNAME")) {
-		struct utsname uts;
-		uname(&uts);
-		set_local_var_from_halves("HOSTNAME", uts.nodename);
+		struct utsname *uts = malloc(sizeof(struct utsname));
+		if (uts) {
+			uname(uts);
+			set_local_var_from_halves("HOSTNAME", uts->nodename);
+			free(uts);
+		}
 	}
 	/* bash also exports SHLVL and _,
 	 * and sets (but doesn't export) the following variables:
