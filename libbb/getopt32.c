@@ -18,6 +18,10 @@
 #endif
 #include "libbb.h"
 
+#ifdef __GNO__
+extern int optreset;	/* exists on GNO, but isn't in the header files */
+#endif
+
 /*      Documentation
 
 uint32_t
@@ -553,7 +557,9 @@ getopt32(char **argv, const char *applet_opts, ...)
 	optind = 0;
 #else /* BSD style */
 	optind = 1;
-	/* optreset = 1; */
+# ifdef BSD /* includes OS X and GNO */
+	optreset = 1;
+# endif
 #endif
 	/* optarg = NULL; opterr = 0; optopt = 0; - do we need this?? */
 

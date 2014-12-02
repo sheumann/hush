@@ -8886,7 +8886,7 @@ static void helper_export_local(char **argv, int exp, int lvl)
 
 static int FAST_FUNC builtin_export(char **argv)
 {
-	unsigned opt_unexport;
+	uint32_t opt_unexport;
 
 #if ENABLE_HUSH_EXPORT_N
 	/* "!": do not abort on errors */
@@ -9256,7 +9256,7 @@ static int FAST_FUNC builtin_read(char **argv)
 	char *opt_t = NULL;
 	char *opt_u = NULL;
 	const char *ifs;
-	int read_flags;
+	uint32_t read_flags;
 
 	/* "!": do not abort on errors.
 	 * Option string must start with "sr" to match BUILTIN_READ_xxx
@@ -9484,12 +9484,12 @@ static int FAST_FUNC builtin_umask(char **argv)
 static int FAST_FUNC builtin_unset(char **argv)
 {
 	int ret;
-	unsigned opts;
+	uint32_t opts;
 
 	/* "!": do not abort on errors */
 	/* "+": stop at 1st non-option */
 	opts = getopt32(argv, "!+vf");
-	if (opts == (unsigned)-1)
+	if (opts == (uint32_t)-1)
 		return EXIT_FAILURE;
 	if (opts == 3) {
 		bb_error_msg("unset: -v and -f are exclusive");
