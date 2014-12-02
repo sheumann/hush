@@ -52,11 +52,7 @@ pid_t vfork_and_run(void (*fn)(void*) NORETURN, void *arg) {
 	 * behavior like a traditional vfork() implementation, where the
 	 * parent blocks until the child terminates or execs.
 	 *
-	 * Our approach will be to have the child send SIGALRM to the parent
-	 * just before it terminates or execs, and block waiting for that here.
-	 * We also set an alarm in case the child doesn't signal.
-	 *
-	 * When we get SIGALRM, we check the process tables to make sure the
+	 * Our approach is to check the process tables to make sure the
 	 * child has actually finished or exec'd.  If not, we loop and try again.
 	 * We can't just rely on the fact that the child signaled us, because
 	 * it may still be running in libc's implementation of exec*.
@@ -64,17 +60,16 @@ pid_t vfork_and_run(void (*fn)(void*) NORETURN, void *arg) {
 	
 	long oldmask;
 	bool environPushed;
-	sig_t prev_alarm_sig;
 	pid_t pid;
 	kvmt *kvm_context;
 	struct pentry *proc_entry;
 	bool done = 0;
 	
-	/* Block all signals for now */
-	oldmask = sigblock(-1);
-	
 	/* Isolate child process's environment from parent */
 	environPushed = !environPush();
+	
+	/* Block all signals for now */
+	oldmask = sigblock(-1);
 	
 	pid = fork2(fork_thunk, 1024, 0, forked_child_name, 
 				(sizeof(fn) + sizeof(arg) + sizeof(oldmask) + 1) / 2, 
@@ -82,14 +77,12 @@ pid_t vfork_and_run(void (*fn)(void*) NORETURN, void *arg) {
 	if (pid < 0) 
 		goto ret;
 	
-	prev_alarm_sig = signal(SIGALRM, SIG_IGN);
-	
 	while (!done) {
-		/* Set alarm. This is a backup in case the child dies without signaling us. */
-		alarm10(1);
-	
-		/* Wait until we get SIGALRM */
-		sigpause(~sigmask(SIGALRM));
+		/* Wait for ~100 ms.  If procsend worked, the child could send a 
+		 * message with it to end the waiting earlier, but this isn't 
+		 * possible in GNO 2.0.6 because procsend is broken.  This isn't
+		 * too big an issue, since 100ms isn't very long to wait anyhow. */
+		procrecvtim(1);
 		
 		/* Check if the child is really dead or forked by inspecting
 		 * the kernel's process entry for it. */
@@ -103,10 +96,6 @@ pid_t vfork_and_run(void (*fn)(void*) NORETURN, void *arg) {
 			done = 1;
 		kvm_close(kvm_context);
 	}
-	
-	alarm10(0);
-	sigsetmask(~sigmask(SIGALRM));
-	signal(SIGALRM, prev_alarm_sig);
 	
 ret:
 	sigsetmask(oldmask);

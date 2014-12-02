@@ -1381,7 +1381,8 @@ int is_forked_child(void) {
 void signal_parent_to_resume(void) {
 #ifdef __GNO__
 	if (getpid() != G.last_execed_pid) {
-		kill(getppid(), SIGALRM);
+		/* If procsend wasn't broken, we could send a "ping" to the parent */
+		//procsend(getppid(), 0);
 	}
 #endif
 }
