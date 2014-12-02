@@ -299,6 +299,7 @@ Special characters:
 */
 
 /* Code here assumes that 'unsigned' is at least 32 bits wide */
+/* This is only important if applet_opts is over 16 chars long. */
 
 const char *const bb_argv_dash[] = { "-", NULL };
 
@@ -337,7 +338,7 @@ getopt32(char **argv, const char *applet_opts, ...)
 	int argc;
 	unsigned flags = 0;
 	unsigned requires = 0;
-	t_complementary complementary[33]; /* last stays zero-filled */
+	t_complementary *complementary = NULL; /* last stays zero-filled */
 	char first_char;
 	int c;
 	const unsigned char *s;
@@ -365,14 +366,16 @@ getopt32(char **argv, const char *applet_opts, ...)
 
 	va_start(p, applet_opts);
 
-	c = 0;
-	on_off = complementary;
-	memset(on_off, 0, sizeof(complementary));
-
 	/* skip bbox extension */
 	first_char = applet_opts[0];
 	if (first_char == '!')
 		applet_opts++;
+
+	c = 0;
+	complementary = calloc(33, sizeof(*complementary));
+	if (complementary == NULL)
+		goto error;
+	on_off = complementary;
 
 	/* skip GNU extension */
 	s = (const unsigned char *)applet_opts;
@@ -612,10 +615,12 @@ getopt32(char **argv, const char *applet_opts, ...)
 		goto error;
 
 	option_mask32 = flags;
+	free(complementary);
 	return flags;
 
  error:
 	if (first_char != '!')
 		bb_show_usage();
+	free(complementary);
 	return (int32_t)-1;
 }
