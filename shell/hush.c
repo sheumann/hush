@@ -8237,8 +8237,21 @@ int hush_main(int argc, char **argv)
 		if (value) { /* paranoia */
 			cur_var->next = xzalloc(sizeof(*cur_var));
 			cur_var = cur_var->next;
+#ifndef __GNO__
 			cur_var->varstr = *e;
 			cur_var->max_len = strlen(*e);
+#else
+			/* Don't try to use variable strings that are in the environment,
+			 * because GNO's environ implementation manages them and may free
+			 * them, which could cause problems for us. */
+			cur_var->varstr = xstrdup(*e);
+			cur_var->max_len = 0;
+			
+			/* Uppercase environment variable names (which are lower-cased
+			 * in environ), to match the usual convention. */
+			for (value = cur_var->varstr; *value != '='; ++value)
+				*value = toupper(*value);
+#endif
 			cur_var->flg_export = 1;
 		}
 		e++;
