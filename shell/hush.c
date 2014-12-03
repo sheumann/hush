@@ -884,6 +884,9 @@ struct lineedit_statics *lineedit_ptr_to_statics;
 
 char *hush_exec_path;
 
+#ifdef __GNO__
+static bool stackcheck = 0;
+#endif
 
 /* Function prototypes for builtins */
 static int builtin_cd(char **argv) FAST_FUNC;
@@ -1403,6 +1406,8 @@ void _exit_wrapper(int status) {
 	if (getpid() == G.last_execed_pid) {
 		// We're the root shell or one that's been exec'd...
 		// Call regular _exit()
+		if (stackcheck)
+			fprintf(stderr, "hush stack usage (pid %i): %i bytes\n", getpid(), _endStackCheck());
 		_exit(status);
 	} else {
 		// We're a forked child.
@@ -8202,6 +8207,12 @@ int hush_main(int argc, char **argv)
 	struct variable *cur_var;
 	struct variable *shell_ver;
 
+#if defined(__GNO__) && HUSH_DEBUG
+	if (getenv("HUSH_STACKCHECK") != NULL) {
+		_beginStackCheck();
+		stackcheck = 1;
+	}
+#endif
 	INIT_G();
 	hush_exec_path = get_exec_path();
 #ifdef __GNO__
