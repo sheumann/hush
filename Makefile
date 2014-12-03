@@ -53,7 +53,8 @@ LIBBB_C_SRC = \
 	libbb/safe.poll.c \
 	libbb/parse.mode.c \
 	libbb/poll.c \
-	libbb/pgrp.c
+	libbb/pgrp.c \
+	libbb/qsort.c
 
 LIBBB_D_SRC = \
 	libbb/xfuncs.printf.c \
