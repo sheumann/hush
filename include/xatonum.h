@@ -81,8 +81,14 @@ narrow xato##N(const char *str) \
 
 DECLARE_STR_CONV(long, l, ul)
 
+/* Without the explicit !defined(__ORCAC__) check, ORCA/C's preprocessor was
+ * falsely treating the following #if as true.  I think this occurs because
+ * the preprocessor state is somehow corrupted.  The added check seems to work
+ * around the bug; hopefully the corruption doesn't cause any other problems.
+ */
+
 /* Same for int -> [long] long */
-#if UINT_MAX == ULONG_MAX
+#if !defined(__ORCAC__) && UINT_MAX == ULONG_MAX
 DEFINE_EQUIV_STR_CONV(int, i, l, u, ul)
 #else
 DECLARE_STR_CONV(int, i, u)
@@ -107,7 +113,7 @@ DECLARE_STR_CONV(int, i, u)
 unsigned long bb_strtoul(const char *arg, char **endp, int base) FAST_FUNC;
 long bb_strtol(const char *arg, char **endp, int base) FAST_FUNC;
 
-#if UINT_MAX == ULONG_MAX
+#if !defined(__ORCAC__) && UINT_MAX == ULONG_MAX
 static ALWAYS_INLINE
 unsigned bb_strtou(const char *arg, char **endp, int base)
 { return bb_strtoul(arg, endp, base); }
