@@ -388,6 +388,24 @@ void close_on_exec_on(int fd) FAST_FUNC;
 void xdup2(int, int) FAST_FUNC;
 void xmove_fd(int, int) FAST_FUNC;
 
+#ifdef __GNO__
+struct cloexec_ent {
+	pid_t pid;
+	uint32_t cloexec_mask;
+};
+
+struct cloexec_ent *get_cloexec_ent(pid_t pid);
+int new_cloexec_ent(uint32_t initial_mask);
+void close_cloexec_fds(void);
+void close_on_exec_on(int fd);
+void close_on_exec_off(int fd);
+int close_wrapper(int fd);
+int fclose_wrapper(FILE *stream);
+int dup2_wrapper(int fd, int fd2);
+# define close(fd) close_wrapper(fd)
+# define fclose(stream) fclose_wrapper(stream)
+# define dup2(fd, fd2) dup2_wrapper(fd, fd2)
+#endif
 
 DIR *xopendir(const char *path) FAST_FUNC;
 DIR *warn_opendir(const char *path) FAST_FUNC;

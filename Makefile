@@ -98,10 +98,6 @@ DEFINES = -Dhush_main=main -DNDEBUG
 # ftp://ftp.gno.org/pub/apple2/gs.specific/gno/base/v204/gnodisk1.sdk
 LIBS = -l/usr/lib/libtermcap.204
 
-# Hack to effectively disable close_on_exec_on method for now.
-# This will cause us to leak file descriptors.  TODO: Fix.
-DEFINES += -DF_SETFD=-1 -DFD_CLOEXEC=-1
-
 # For correct handling of varargs methods and fork, we need
 # optimize bit 3 set (no stack repair code).
 # Optimize bit 6 breaks some standard-compliant varargs code,

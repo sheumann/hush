@@ -1403,6 +1403,10 @@ static QuitRecGS quitRec = {0, NULL, 0};
  * problems), so we define our own version without this problem.
  */
 void _exit_wrapper(int status) {
+	struct cloexec_ent *ent = get_cloexec_ent(getpid());
+	if (ent)
+		ent->pid = 0;
+
 	if (getpid() == G.last_execed_pid) {
 		// We're the root shell or one that's been exec'd...
 		// Call regular _exit()
@@ -8220,6 +8224,7 @@ int hush_main(int argc, char **argv)
 	if (environPush() == 0)
 		atexit(environPop);
 	environInit();
+	new_cloexec_ent(0);
 #endif
 	if (EXIT_SUCCESS != 0) /* if EXIT_SUCCESS == 0, it is already done */
 		G.last_exitcode = EXIT_SUCCESS;

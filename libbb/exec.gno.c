@@ -1,4 +1,4 @@
-#include <libbb.h>
+#include "libbb.h"
 #include <gsos.h>
 #include <orca.h>
 
@@ -92,6 +92,11 @@ int execve(const char *path, char *const *argv, char *const *envp)
 		if (buildEnv(envp) != 0)
 			goto error_ret;
 	}
+	
+	/* This will close the close-on-exec fds even if the exec 
+	 * ultimately fails.  This should be OK for our uses, because
+	 * hush just prints an error message and exits in those cases. */
+	close_cloexec_fds();
 	
 	_execve(path, args);
 	

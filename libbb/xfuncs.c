@@ -45,10 +45,116 @@ int FAST_FUNC ndelay_off(int fd)
 }
 #endif
 
+#ifdef __GNO__
+
+# undef close
+# undef fclose
+# undef dup2
+
+# define N_CLOEXEC_ENT 4
+static struct cloexec_ent cloexec_table[N_CLOEXEC_ENT];
+
+struct cloexec_ent *get_cloexec_ent(pid_t pid)
+{
+	int i;
+	for (i = 0; i < N_CLOEXEC_ENT; i++) {
+		if (cloexec_table[i].pid == pid)
+			return &cloexec_table[i];
+	}
+	return NULL;
+}
+
+int new_cloexec_ent(uint32_t initial_mask)
+{
+	int i;
+	int newpid = getpid();
+	
+	/* Find an entry that doesn't correspond to an active process */
+	for (i = 0; i < N_CLOEXEC_ENT; i++) {
+		int pid = cloexec_table[i].pid;
+		if (pid == 0 || pid == newpid)
+			break;
+		if (_getpgrp(pid) == -1 && errno == ESRCH)
+			break;
+	}
+	
+	if (i == N_CLOEXEC_ENT)
+		return -1;
+	
+	cloexec_table[i].pid = newpid;
+	cloexec_table[i].cloexec_mask = initial_mask;
+	return 0;
+}
+
+void close_cloexec_fds(void)
+{
+	int fd;
+	struct cloexec_ent *ent = get_cloexec_ent(getpid());
+	if (ent == NULL)
+		return;
+	for (fd = 0; fd < 32; fd++) {
+		if (ent->cloexec_mask & (1L << fd)) {
+			close(fd);
+		}
+	}
+	
+	/* Free the entry (since we're about to exec) */
+	ent->pid = 0;
+}
+
+void close_on_exec_on(int fd)
+{
+	struct cloexec_ent *ent = get_cloexec_ent(getpid());
+	if (ent == NULL || fd < 0 || fd >= 32)
+		return;
+	ent->cloexec_mask |= (1L << fd);
+}
+
+void close_on_exec_off(int fd)
+{
+	struct cloexec_ent *ent = get_cloexec_ent(getpid());
+	if (ent == NULL || fd < 0 || fd >= 32)
+		return;
+	ent->cloexec_mask &= ~(1L << fd);
+}
+
+int close_wrapper(int fd)
+{
+	int result = close(fd);
+	if (result == 0)
+		close_on_exec_off(fd);
+	return result;
+}
+
+int fclose_wrapper(FILE *stream)
+{
+	int fd = fileno(stream);
+	int result = fclose(stream);
+	if (result == 0)
+		close_on_exec_off(fd);
+	return result;
+}
+
+int dup2_wrapper(int fd, int fd2)
+{
+	int result = dup2(fd, fd2);
+	if (result == 0 && fd != fd2)
+		close_on_exec_off(fd2);
+	return result;
+}
+
+# define close(fd) close_wrapper(fd)
+# define fclose(stream) fclose_wrapper(stream)
+# define dup2(fd, fd2) dup2_wrapper(fd, fd2)
+
+#else
+
 void FAST_FUNC close_on_exec_on(int fd)
 {
 	fcntl(fd, F_SETFD, FD_CLOEXEC);
 }
+
+#endif
 
 char* FAST_FUNC strncpy_IFNAMSIZ(char *dst, const char *src)
 {

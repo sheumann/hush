@@ -38,6 +38,8 @@ pid_t vfork_and_run(void (*fn)(void*) NORETURN, void *arg) {
 
 # pragma databank 1
 void fork_thunk(void (*fn)(void*) NORETURN, void *arg, long sigmask) {
+	struct cloexec_ent *ent = get_cloexec_ent(getppid());
+	new_cloexec_ent(ent ? ent->cloexec_mask : 0);
 	sigsetmask(sigmask);
 	fn(arg);
 }
