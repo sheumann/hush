@@ -64,6 +64,10 @@
 
 #include "libbb.h"
 #include <setjmp.h>
+#ifdef __GNO__
+# include <gsos.h>
+# include <orca.h>
+#endif
 
 /* This is a NOFORK applet. Be very careful! */
 
@@ -602,6 +606,29 @@ static int test_eaccess(char *path, int mode)
 
 	if (st.st_mode & mode)
 		return 0;
+
+#ifdef __GNO__
+	/* Treat EXEC files as executable, which GNO's stat() doesn't */
+	if (mode & S_IXUSR) {
+		int result = -1;
+		FileInfoRecGS *fi;
+		GSStringPtr gs_path = __C2GSMALLOC(path);
+		if (gs_path == NULL)
+			return result;
+		fi = malloc(sizeof(FileInfoRecGS));
+		if (fi == NULL) 
+			goto cleanup;
+		fi->pCount = 4;
+		fi->pathname = gs_path;
+		GetFileInfoGS(fi);
+		if (!toolerror() && fi->fileType == 0xB0 && fi->auxType == 0x0006)
+			result = 0;
+ cleanup:
+		free(fi);
+		GIfree(gs_path);
+		return result;
+	}
+#endif
 
 	return -1;
 }

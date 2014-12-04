@@ -61,6 +61,7 @@
  * avoid a couple definitions using ORCA/C's nonstandard inline directive.
  */
 #ifdef __GNO__
+# define __USE_DYNAMIC_GSSTRING__
 # define __KERN_STATUS
 # include <gno/gno.h>
 #endif

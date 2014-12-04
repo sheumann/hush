@@ -70,7 +70,7 @@ int execve(const char *path, char *const *argv, char *const *envp)
 {
 	char *args = NULL;
 	size_t pathlen;
-	GSString255 *path_gs = NULL;
+	GSString255Ptr path_gs = NULL;
  	static FileInfoRecGS fileInfoRec;
  	int script_fd;
  	static char hashbang_line[MAX_HASHBANG_LINE + 1];
