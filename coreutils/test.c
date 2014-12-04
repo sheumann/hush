@@ -590,10 +590,15 @@ static int test_eaccess(char *path, int mode)
 			return 0;
 	}
 
+#ifndef __GNO__
 	if (st.st_uid == euid)  /* owner */
 		mode <<= 6;
 	else if (is_a_group_member(st.st_gid))
 		mode <<= 3;
+#else
+	/* GNO stat() only gives "owner" permissions (really applicable to anyone) */
+	mode <<= 6;
+#endif
 
 	if (st.st_mode & mode)
 		return 0;
