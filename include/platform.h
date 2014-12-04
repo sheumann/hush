@@ -44,6 +44,9 @@
 # define __const const
 #endif
 
+/* used by unit test machinery to run registration functions before calling main() */
+#define INIT_FUNC __attribute__ ((constructor))
+
 #define UNUSED_PARAM __attribute__ ((__unused__))
 #define NORETURN __attribute__ ((__noreturn__))
 /* "The malloc attribute is used to tell the compiler that a function
@@ -80,9 +83,6 @@
 # define DEPRECATED
 # define UNUSED_PARAM_RESULT
 #endif
-
-/* used by unit test machinery to run registration functions before calling main() */
-#define INIT_FUNC __attribute__ ((constructor))
 
 /* -fwhole-program makes all symbols local. The attribute externally_visible
  * forces a symbol global.  */

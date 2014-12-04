@@ -7833,7 +7833,7 @@ static int run_list(struct pipe *pi)
 			}
 		}
 		last_followup = pi->followup;
-		IF_HAS_KEYWORDS(last_rword = rword;)
+		IF_HAS_KEYWORDS(last_rword = rword); /* ; outside to avoid ORCA/C bug */
 #if ENABLE_HUSH_IF
 		if (cond_code) {
 			if (rword == RES_THEN) {

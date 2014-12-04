@@ -28,6 +28,8 @@ type xato##T##_range(const char *str, type l, type u) FAST_FUNC; \
 type xato##T##_sfx(const char *str, const struct suffix_mult *sfx) FAST_FUNC; \
 type xato##T(const char *str) FAST_FUNC; \
 
+DECLARE_STR_CONV(long, l, ul)
+
 
 /* Provides inline definitions of functions */
 /* (useful for mapping them to the type of the same width) */
@@ -78,14 +80,6 @@ narrow xato##N##_sfx(const char *str, const struct suffix_mult *sfx) \
 static ALWAYS_INLINE \
 narrow xato##N(const char *str) \
 { return xato##W(str); } \
-
-DECLARE_STR_CONV(long, l, ul)
-
-/* Without the explicit !defined(__ORCAC__) check, ORCA/C's preprocessor was
- * falsely treating the following #if as true.  I think this occurs because
- * the preprocessor state is somehow corrupted.  The added check seems to work
- * around the bug; hopefully the corruption doesn't cause any other problems.
- */
 
 /* Same for int -> [long] long */
 #if !defined(__ORCAC__) && UINT_MAX == ULONG_MAX
