@@ -38,6 +38,16 @@ xrealloc_getcwd_or_warn(char *cwd)
 			return NULL;
 		}
 		cwd = xrealloc(cwd, strlen(cwd) + 1);
+#ifdef __GNO__
+		/* Translate path to use slashes (unless it contains a directory
+		 * name with a slash in it).  This increases compatibility with
+		 * scripts that expect paths to be in the normal Unix style. */
+		if (strchr(cwd, '/') == NULL) {
+			char *ch = cwd;
+			while ((ch = strchr(ch, ':')) != NULL)
+				*ch = '/';
+		}
+#endif
 		return cwd;
 	}
 }
