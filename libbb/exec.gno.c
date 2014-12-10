@@ -1,6 +1,9 @@
 #include "libbb.h"
+#undef inline
 #include <gsos.h>
 #include <orca.h>
+#include <memory.h>
+#include <gno/kvm.h>
 
 #ifdef __GNO__
 /* We use our own implementations of execv* because we need to
@@ -12,10 +15,55 @@
 extern char *hush_exec_path;
  
 #define MAX_HASHBANG_LINE 127
+
+/* Allocate memory that is associated with the current process
+ * (even if it's been forked), and thus will be deallocated once 
+ * it quits or successfully execs.
+ */
+void *alloc_for_current_process(size_t size)
+{
+	kvmt *kvm_context;
+	struct pentry *proc_entry;
+	int userID;
+	Handle handle;
+
+	/* Get current user ID from our process entry */
+	kvm_context = kvm_open();
+	if (kvm_context == NULL)
+		return NULL;
+	proc_entry = kvmgetproc(kvm_context, getpid());
+	userID = proc_entry->userID;
+	kvm_close(kvm_context);
+	
+	handle = NewHandle(size, userID, 0xC008, NULL);
+	if (toolerror()) {
+		errno = ENOMEM;
+		return NULL;
+	}
+	
+	return *handle;
+}
+
+/* Deallocate memory allocated by alloc_for_current_process */
+void dealloc_for_current_process(void *ptr)
+{
+	Handle handle;
+
+	if (ptr == NULL)
+		return;
+	handle = FindHandle(ptr);
+	if (handle == NULL) {
+		fprintf(stderr, "invalid deallocation detected!\n");
+		errno = EINVAL;
+		return;
+	}
+	DisposeHandle(handle);
+}
  
- /* Build a single args string out of argv, with quoting.
-  * Returns the (malloced) args string, or NULL on error.
-  */
+
+/* Build a single args string out of argv, with quoting.
+ * Returns the (alloc_for_current_process'd) args string, or NULL on error.
+ */
 static char *build_args(char *const *argv)
 {
 	char *args;
@@ -34,7 +82,7 @@ static char *build_args(char *const *argv)
 		argslen += strlen(argv[i]) + 3;
 	}
 	
-	nextarg = args = malloc(argslen);
+	nextarg = args = alloc_for_current_process(argslen);
 	if (args == NULL) {
 		errno = ENOMEM;
 		return NULL;
@@ -62,10 +110,10 @@ static char *build_args(char *const *argv)
 	return args;
  }
  
- /* Note that this expects environ to be initialized.  
-  * Also, if envp != environ, it will update the environment of this process
-  * (and the one it's forked from, if any, unless there's been an environPush).
-  */
+/* Note that this expects environ to be initialized.  
+ * Also, if envp != environ, it will update the environment of this process
+ * (and the one it's forked from, if any, unless there's been an environPush).
+ */
 int execve(const char *path, char *const *argv, char *const *envp)
 {
 	char *args = NULL;
@@ -100,7 +148,7 @@ int execve(const char *path, char *const *argv, char *const *envp)
 	
 	_execve(path, args);
 	
-	free(args);
+	dealloc_for_current_process(args);
 	args = NULL;
 	
 	/* If _execve kernel call failed, consider trying to execute 
@@ -200,7 +248,7 @@ int execve(const char *path, char *const *argv, char *const *envp)
  error_ret:
 	/* error case */
 	free(path_gs);
-	free(args);
+	dealloc_for_current_process(args);
 	return -1;
 } 
 
@@ -212,7 +260,7 @@ int execv(const char *path, char *const *argv)
 int execvp(const char *file, char *const *argv)
 {
 	int result;
-	char *path;
+	char *path, *path2;
 	
 	path = buildPath(file);
 	if (path == NULL) {
@@ -220,10 +268,20 @@ int execvp(const char *file, char *const *argv)
 		return -1;
 	}
 	
-	result = execve(path, argv, environ);
+	/* Move path to memory that will be freed following _execve */
+	path2 = alloc_for_current_process(strlen(path) + 1);
+	if (path2 == NULL) {
+		free(path);
+		errno = ENOMEM;
+		return -1;
+	}
+	strcpy(path2, path);
+	free(path);
+	
+	result = execve(path2, argv, environ);
 	
 	/* error case */
-	free(path);
+	dealloc_for_current_process(path2);
 	return result;
 }
 #endif
