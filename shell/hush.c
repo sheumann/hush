@@ -5797,6 +5797,20 @@ static char *decode_arg(char *arg)
 	return arg;
 }
 
+extern void *alloc_for_current_process(size_t size);
+
+/* Return an encoded copy of arg (or die on failure).
+ * The copy is allocated with alloc_for_current_process,
+ * so it will be deallocated when the process quits or execs. */
+static char *encode_arg_dup(const char *arg)
+{
+	char *encoded = alloc_for_current_process(strlen(arg) + 1);
+	if (encoded == NULL)
+		_exit(127);
+	strcpy(encoded, arg);
+	return encode_arg(encoded);
+}
+
 static void code_subshell_args(char *(*coder_fn)(char *))
 {
 	struct variable *cur;
@@ -5824,6 +5838,7 @@ static void code_subshell_args(char *(*coder_fn)(char *))
 
 # define encode_arg(x) (x)
 # define decode_arg(x) (x)
+# define encode_arg_dup(x) (x)
 # define encode_subshell_args() do {} while (0)
 # define decode_subshell_args() do {} while (0)
 
@@ -6013,7 +6028,7 @@ static void re_execute_shell(char ***to_free, const char *s,
 	 * I conclude it means we don't need to pass active traps here.
 	 */
 	*pp++ = (char *) "-c";
-	*pp++ = (char *) s;
+	*pp++ = encode_arg_dup((char *) s);
 	if (builtin_argv) {
 		while (*++builtin_argv)
 			*pp++ = *builtin_argv;
@@ -8403,7 +8418,7 @@ int hush_main(int argc, char **argv)
 				G.global_argc++;
 			} /* else -c 'script' ARG0 [ARG1...]: $0 is ARG0 */
 			install_special_sighandlers();
-			parse_and_run_string(optarg);
+			parse_and_run_string(G.root_pid != getpid() ? decode_arg(optarg) : optarg);
 			goto final_return;
 		case 'i':
 			/* Well, we cannot just declare interactiveness,
