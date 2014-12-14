@@ -138,7 +138,7 @@ char *clear_to_end_of_screen_cmd = ESC"[J";
 char termcap_string_buf[TERMCAP_BUFSIZ];
 
 /* Terminal escape sequences to process in input (used by read_key) */
-#define MAX_ESCAPE_SEQS 14
+#define MAX_ESCAPE_SEQS 18
 struct escape_seq escape_seqs[MAX_ESCAPE_SEQS];
 int n_escape_seqs;
 
@@ -229,13 +229,18 @@ static void deinit_S(void)
 }
 #define DEINIT_S() deinit_S()
 
-static void add_escape_seq(char *termcap_code, signed char keycode, char **string_buf)
+static void add_escape_seq(char *seq, signed char keycode)
+{
+	escape_seqs[n_escape_seqs].seq = seq;
+	escape_seqs[n_escape_seqs].keycode = keycode;
+	n_escape_seqs++;
+}
+
+static void add_escape_seq_from_termcap(char *termcap_code, signed char keycode, char **string_buf)
 {
 	char *result = tgetstr(termcap_code, string_buf);
 	if (result != NULL) {
-		escape_seqs[n_escape_seqs].seq = result;
-		escape_seqs[n_escape_seqs].keycode = keycode;
-		n_escape_seqs++;
+		add_escape_seq(result, keycode);
 		
 		/* Hack to deal with "normal mode" escape sequences if termcap gives
 		 * us sequences for "cursor application mode" (on vt100-ish terminals)
@@ -245,9 +250,7 @@ static void add_escape_seq(char *termcap_code, signed char keycode, char **strin
 			if (result == NULL)
 				return;
 			result[1] = '[';
-			escape_seqs[n_escape_seqs].seq = result;
-			escape_seqs[n_escape_seqs].keycode = keycode;
-			n_escape_seqs++;
+			add_escape_seq(result, keycode);
 		}
 	}
 }
@@ -284,14 +287,23 @@ void init_termcap(void)
 		clear_to_end_of_screen_cmd = result;
 		
 	n_escape_seqs = 0;
-	add_escape_seq("ku", KEYCODE_UP, &string_buf);
-	add_escape_seq("kd", KEYCODE_DOWN, &string_buf);
-	add_escape_seq("kl", KEYCODE_LEFT, &string_buf);
-	add_escape_seq("kr", KEYCODE_RIGHT, &string_buf);
-	add_escape_seq("kD", KEYCODE_DELETE, &string_buf);
-	add_escape_seq("kh", KEYCODE_HOME, &string_buf);
-	add_escape_seq("@7", KEYCODE_END, &string_buf);
+	add_escape_seq_from_termcap("ku", KEYCODE_UP, &string_buf);
+	add_escape_seq_from_termcap("kd", KEYCODE_DOWN, &string_buf);
+	add_escape_seq_from_termcap("kl", KEYCODE_LEFT, &string_buf);
+	add_escape_seq_from_termcap("kr", KEYCODE_RIGHT, &string_buf);
+	add_escape_seq_from_termcap("kD", KEYCODE_DELETE, &string_buf);
+	add_escape_seq_from_termcap("kh", KEYCODE_HOME, &string_buf);
+	add_escape_seq_from_termcap("@7", KEYCODE_END, &string_buf);
 	/* Not currently supported: CTRL/ALT_LEFT/RIGHT */
+	
+#ifdef __GNO__
+	/* We put the terminal in VT100ARROW mode, which isn't reflected
+	 * in the termcap entry, so add VT100-style escape sequences. */
+	add_escape_seq(ESC"OA", KEYCODE_UP);
+	add_escape_seq(ESC"OB", KEYCODE_DOWN);
+	add_escape_seq(ESC"OD", KEYCODE_LEFT);
+	add_escape_seq(ESC"OC", KEYCODE_RIGHT);
+#endif
 	
 	free(termcap_buffer);
 }
@@ -2386,6 +2398,8 @@ int FAST_FUNC read_line_input(line_input_t *st, const char *prompt, char *comman
 	struct sgttyb new_settings;
 	struct tchars initial_tchars;
 	struct tchars new_tchars;
+	unsigned int initial_ttyk;
+	unsigned int new_ttyk;
 #endif
 	char read_key_buffer[KEYCODE_BUFFER_SIZE];
 
@@ -2397,6 +2411,7 @@ int FAST_FUNC read_line_input(line_input_t *st, const char *prompt, char *comman
 #else
 	if (ioctl(STDIN_FILENO, TIOCGETP, &initial_settings) < 0
 	 || ioctl(STDIN_FILENO, TIOCGETC, &initial_tchars) < 0
+	 || ioctl(STDIN_FILENO, TIOCGETK, &initial_ttyk) < 0
 	 || !(initial_settings.sg_flags & ECHO)
 #endif
 	) {
@@ -2464,6 +2479,8 @@ int FAST_FUNC read_line_input(line_input_t *st, const char *prompt, char *comman
 	new_tchars = initial_tchars;
 	new_tchars.t_intrc = (char)-1;	
 	ioctl(STDIN_FILENO, TIOCSETC, &new_tchars);
+	new_ttyk = initial_ttyk | VT100ARROW;
+	ioctl(STDIN_FILENO, TIOCSETK, &new_ttyk);
 #endif
 
 #if ENABLE_USERNAME_OR_HOMEDIR
@@ -2978,6 +2995,7 @@ int FAST_FUNC read_line_input(line_input_t *st, const char *prompt, char *comman
 #else
 	ioctl(STDIN_FILENO, TIOCSETN, &initial_settings);
 	ioctl(STDIN_FILENO, TIOCSETC, &initial_tchars);
+	ioctl(STDIN_FILENO, TIOCSETK, &initial_ttyk);
 #endif
 	/* restore SIGWINCH handler */
 	signal(SIGWINCH, previous_SIGWINCH_handler);
