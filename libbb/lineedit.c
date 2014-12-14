@@ -428,6 +428,26 @@ static void save_string(char *dst, unsigned maxsize)
 int adjust_width_and_validate_wc(unsigned *width_adj, int wc);
 #endif
 
+static void bb_put_cr(void)
+{
+#ifdef __GNO__
+	struct sgttyb initial_settings;
+	struct sgttyb new_settings;
+	
+	fflush(stdout);
+	ioctl(STDOUT_FILENO, TIOCGETP, &initial_settings);
+	new_settings = initial_settings;
+	new_settings.sg_flags &= ~CRMOD;
+	ioctl(STDOUT_FILENO, TIOCSETN, &new_settings);
+#endif
+
+	write(STDOUT_FILENO, "\r", 1);
+
+#ifdef __GNO__
+	ioctl(STDOUT_FILENO, TIOCSETN, &initial_settings);
+#endif
+}
+
 
 /* Put 'command_ps[cursor]', cursor++.
  * Advance cursor on screen. If we reached right margin, scroll text up
@@ -470,7 +490,7 @@ static void put_cur_glyph_and_inc_cursor(void)
 		 * have automargin (IOW: it is moving cursor to next line
 		 * by itself (which is wrong for VT-10x terminals)),
 		 * this will break things: there will be one extra empty line */
-		bb_putchar_binary('\r');
+		bb_put_cr();
 		bb_putchar_binary('\n');
 #else
 		/* VT-10x terminals don't wrap cursor to next line when last char
@@ -586,7 +606,7 @@ static void input_backward(unsigned num)
 		 */
 		unsigned sv_cursor;
 		/* go to 1st column; go up to first line */
-		bb_putchar_binary('\r');
+		bb_put_cr();
 		go_up(cmdedit_y);
 		cmdedit_y = 0;
 		sv_cursor = cursor;
@@ -604,7 +624,7 @@ static void input_backward(unsigned num)
 		cmdedit_x = (width * cmdedit_y - num) % width;
 		cmdedit_y -= lines_up;
 		/* go to 1st column; go up */
-		bb_putchar_binary('\r');
+		bb_put_cr();
 		go_up(lines_up);
 		/* go to correct column.
 		 * xterm, konsole, Linux VT interpret 0 as 1 below! wow.
@@ -623,7 +643,7 @@ static void redraw(int y, int back_cursor)
 {
 	if (y > 0) /* up y lines */
 		go_up(y); // UP -- not implemented; loop doing "up"
-	bb_putchar_binary('\r');
+	bb_put_cr();
 	put_prompt();
 	put_till_end_and_adv_cursor();
 	tputs(clear_to_end_of_screen_cmd, 1, bb_putchar);
@@ -2435,7 +2455,7 @@ int FAST_FUNC read_line_input(line_input_t *st, const char *prompt, char *comman
 	tcsetattr_stdin_TCSANOW(&new_settings);
 #else
 	new_settings.sg_flags |= CBREAK;
-	new_settings.sg_flags &= ~(CRMOD|ECHO);
+	new_settings.sg_flags &= ~ECHO;
 	ioctl(STDIN_FILENO, TIOCSETN, &new_settings);
 	/* Contrary to documentation, tchars aren't fully disabled in CBREAK mode,
 	 * so do it explicitly.  Maybe other characters should be disabled too? */
