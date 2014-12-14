@@ -135,8 +135,6 @@ char *right_cmd = ESC"[C";
 char *clear_to_end_of_screen_cmd = ESC"[J";
 #endif
 
-bool automargin;	/* Does terminal have automatic margins? */
-
 char termcap_string_buf[TERMCAP_BUFSIZ];
 
 /* Terminal escape sequences to process in input (used by read_key) */
@@ -268,8 +266,6 @@ void init_termcap(void)
 	if (termcap_buffer == NULL)
 		return;
 	tgetent(termcap_buffer, term);
-	
-	automargin = tgetflag("am");
 	
 	result = tgetstr("up", &string_buf);
 	if (result != NULL)
@@ -474,10 +470,8 @@ static void put_cur_glyph_and_inc_cursor(void)
 		 * have automargin (IOW: it is moving cursor to next line
 		 * by itself (which is wrong for VT-10x terminals)),
 		 * this will break things: there will be one extra empty line */
-		if (!automargin) {
-			bb_putchar_binary('\r');
-			bb_putchar_binary('\n');
-		}
+		bb_putchar_binary('\r');
+		bb_putchar_binary('\n');
 #else
 		/* VT-10x terminals don't wrap cursor to next line when last char
 		 * on the line is printed - cursor stays "over" this char.
@@ -592,6 +586,7 @@ static void input_backward(unsigned num)
 		 */
 		unsigned sv_cursor;
 		/* go to 1st column; go up to first line */
+		bb_putchar_binary('\r');
 		go_up(cmdedit_y);
 		cmdedit_y = 0;
 		sv_cursor = cursor;
@@ -609,13 +604,14 @@ static void input_backward(unsigned num)
 		cmdedit_x = (width * cmdedit_y - num) % width;
 		cmdedit_y -= lines_up;
 		/* go to 1st column; go up */
+		bb_putchar_binary('\r');
 		go_up(lines_up);
 		/* go to correct column.
 		 * xterm, konsole, Linux VT interpret 0 as 1 below! wow.
 		 * need to *make sure* we skip it if cmdedit_x == 0 */
 		if (cmdedit_x) {
 			int cols_right;
-			for (cols_right = cmdedit_x; cols_right > 0; cols_right++) {
+			for (cols_right = cmdedit_x; cols_right > 0; cols_right--) {
 				tputs(right_cmd, 1, bb_putchar);
 			}
 		}
