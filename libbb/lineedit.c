@@ -433,8 +433,10 @@ static void bb_put_cr(void)
 #ifdef __GNO__
 	struct sgttyb initial_settings;
 	struct sgttyb new_settings;
+#endif
 	
 	fflush(stdout);
+#ifdef __GNO__
 	ioctl(STDOUT_FILENO, TIOCGETP, &initial_settings);
 	new_settings = initial_settings;
 	new_settings.sg_flags &= ~CRMOD;
