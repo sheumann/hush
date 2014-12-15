@@ -1,4 +1,4 @@
-# The *_SRC variables are used to define segments; see the "%.a" recipe.
+# The *_SRC variables are used to define segments; see the "%.o" recipe.
 # shell/hush.c is divided into segments as specified within the file itself.
 
 MAIN_SRC = shell/hush.c
@@ -73,7 +73,7 @@ LIBBB_D_SRC = \
 	
 SRCS = $(MAIN_SRC) $(SHELL_OTHER_SRC) $(COREUTILS_SRC) $(LIBBB_A_SRC) \
 	$(LIBBB_B_SRC) $(LIBBB_C_SRC) $(LIBBB_D_SRC)
-OBJS = $(SRCS:.c=.a)
+OBJS = $(SRCS:.c=.o)
 ROOT = $(MAIN_SRC:.c=.root)
 
 SHELL_OTHER_SEG = -SSHELLOTHER
@@ -102,8 +102,8 @@ LIBS = -l/usr/lib/libtermcap.204
 # optimize bit 3 set (no stack repair code).
 # Optimize bit 6 breaks some standard-compliant varargs code,
 # and bits 0, 4, and 5 have known bugs.  Disable for now.
-CFLAGS = -i -w -a0 -O8
-STACKSIZE = 8192
+CFLAGS = -i -w -a1 -O8
+STACKSIZE = 4096
 
 .IF $(DEBUG)
 CFLAGS += -g -DDEBUG
@@ -114,7 +114,7 @@ PROG = hush
 $(PROG): $(OBJS)
 	$(CC) $(LIBS) $(OBJS) -o $@
 
-%.a: %.c
+%.o: %.c
 	$(CC) $(INCLUDES) $(DEFINES) $(CFLAGS) -c $< -o $@ \
 		$(eq,$<,$(MAIN_SRC) -s$(STACKSIZE) -r) \
 		$(!eq,$(SHELL_OTHER_SRC:s/$<//),$(SHELL_OTHER_SRC) $(SHELL_OTHER_SEG)) \

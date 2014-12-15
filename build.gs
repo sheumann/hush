@@ -1,1 +1,1 @@
-chtyp -l cc include/*.h coreutils/*.c libbb/*.c shell/*.c shell/*.h; make -i $1
+chtyp -l cc include/*.h coreutils/*.c libbb/*.c shell/*.c shell/*.h; make $1
