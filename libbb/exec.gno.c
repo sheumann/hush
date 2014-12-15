@@ -140,6 +140,29 @@ int execve(const char *path, char *const *argv, char *const *envp)
 		if (buildEnv(envp) != 0)
 			goto error_ret;
 	}
+
+	/* Check that the file exists before we try to _execve it.
+	 * We must do this now, because if we give _execve a path on 
+	 * a non-existent volume, it will put up an unescapable GS/OS 
+	 * dialog asking for that volume to be inserted. */
+	pathlen = strlen(path);
+	path_gs = malloc(strlen(path) + offsetof(GSString255, text) + 1);
+	if (path_gs == NULL) {
+		errno = ENOMEM;
+		goto error_ret;
+	}
+	strcpy(path_gs->text, path);
+	path_gs->length = pathlen;
+	fileInfoRec.pCount = 4;
+	fileInfoRec.pathname = path_gs;
+	GetFileInfoGS(&fileInfoRec);
+	/* If it's not an EXEC file, error out. */
+	if (toolerror()) {
+		errno = ENOENT;
+		goto error_ret;
+	}
+	free(path_gs);
+	path_gs = NULL;
 	
 	/* This will close the close-on-exec fds even if the exec 
 	 * ultimately fails.  This should be OK for our uses, because
@@ -153,25 +176,10 @@ int execve(const char *path, char *const *argv, char *const *envp)
 	
 	/* If _execve kernel call failed, consider trying to execute 
 	 * the file as a script. */
-	pathlen = strlen(path);
-	path_gs = malloc(strlen(path) + offsetof(GSString255, text) + 1);
-	if (path_gs == NULL) {
-		errno = ENOMEM;
-		goto error_ret;
-	}
-	strcpy(path_gs->text, path);
-	path_gs->length = pathlen;
-	fileInfoRec.pCount = 4;
-	fileInfoRec.pathname = path_gs;
-	GetFileInfoGS(&fileInfoRec);
-	/* If it's not an EXEC file, error out. */
-	if (toolerror() || fileInfoRec.fileType != 0xB0 || fileInfoRec.auxType != 0x0006) {
+	if (fileInfoRec.fileType != 0xB0 || fileInfoRec.auxType != 0x0006) {
 		errno = EACCES;
 		goto error_ret;
 	}
-	
-	free(path_gs);
-	path_gs = NULL;
 	
 	script_fd = open(path, O_RDONLY);
 	if (script_fd == -1)
