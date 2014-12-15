@@ -138,7 +138,7 @@ char *clear_to_end_of_screen_cmd = ESC"[J";
 char termcap_string_buf[TERMCAP_BUFSIZ];
 
 /* Terminal escape sequences to process in input (used by read_key) */
-#define MAX_ESCAPE_SEQS 18
+#define MAX_ESCAPE_SEQS 28
 struct escape_seq escape_seqs[MAX_ESCAPE_SEQS];
 int n_escape_seqs;
 
@@ -236,6 +236,8 @@ static void add_escape_seq(char *seq, signed char keycode)
 	n_escape_seqs++;
 }
 
+#define LAST_ESCAPE_SEQ() (escape_seqs[n_escape_seqs-1].seq)
+
 static void add_escape_seq_from_termcap(char *termcap_code, signed char keycode, char **string_buf)
 {
 	char *result = tgetstr(termcap_code, string_buf);
@@ -290,19 +292,33 @@ void init_termcap(void)
 	add_escape_seq_from_termcap("ku", KEYCODE_UP, &string_buf);
 	add_escape_seq_from_termcap("kd", KEYCODE_DOWN, &string_buf);
 	add_escape_seq_from_termcap("kl", KEYCODE_LEFT, &string_buf);
+	if (strcmp(LAST_ESCAPE_SEQ(), ESC"[D") == 0) {
+		add_escape_seq(ESC"[1;3D", KEYCODE_ALT_LEFT);
+		add_escape_seq(ESC"[1;9D", KEYCODE_ALT_LEFT);	// xterm on OS X: command-left 
+		add_escape_seq(ESC"b", KEYCODE_ALT_LEFT);		// OS X Terminal: option-left
+		add_escape_seq(ESC"[1;5D", KEYCODE_CTRL_LEFT);
+	}
 	add_escape_seq_from_termcap("kr", KEYCODE_RIGHT, &string_buf);
+	if (strcmp(LAST_ESCAPE_SEQ(), ESC"[C") == 0) {
+		add_escape_seq(ESC"[1;3C", KEYCODE_ALT_RIGHT);
+		add_escape_seq(ESC"[1;9C", KEYCODE_ALT_RIGHT);	// xterm on OS X: command-right 
+		add_escape_seq(ESC"f", KEYCODE_ALT_RIGHT);		// OS X Terminal: option-right
+		add_escape_seq(ESC"[1;5C", KEYCODE_CTRL_RIGHT);
+	}
 	add_escape_seq_from_termcap("kD", KEYCODE_DELETE, &string_buf);
 	add_escape_seq_from_termcap("kh", KEYCODE_HOME, &string_buf);
 	add_escape_seq_from_termcap("@7", KEYCODE_END, &string_buf);
-	/* Not currently supported: CTRL/ALT_LEFT/RIGHT */
 	
 #ifdef __GNO__
 	/* We put the terminal in VT100ARROW mode, which isn't reflected
-	 * in the termcap entry, so add VT100-style escape sequences. */
+	 * in the termcap entry, so add VT100-style escape sequences. 
+	 * Also add sequences for OA-left/right, per OA2META mapping. */
 	add_escape_seq(ESC"OA", KEYCODE_UP);
 	add_escape_seq(ESC"OB", KEYCODE_DOWN);
 	add_escape_seq(ESC"OD", KEYCODE_LEFT);
 	add_escape_seq(ESC"OC", KEYCODE_RIGHT);
+	add_escape_seq(ESC"\x8", KEYCODE_ALT_LEFT);
+	add_escape_seq(ESC"\x15", KEYCODE_ALT_RIGHT);
 #endif
 	
 	free(termcap_buffer);
@@ -2479,7 +2495,7 @@ int FAST_FUNC read_line_input(line_input_t *st, const char *prompt, char *comman
 	new_tchars = initial_tchars;
 	new_tchars.t_intrc = (char)-1;	
 	ioctl(STDIN_FILENO, TIOCSETC, &new_tchars);
-	new_ttyk = initial_ttyk | VT100ARROW;
+	new_ttyk = initial_ttyk | VT100ARROW | OAMAP | OA2META;
 	ioctl(STDIN_FILENO, TIOCSETK, &new_ttyk);
 #endif
 
