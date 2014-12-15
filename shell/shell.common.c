@@ -142,15 +142,20 @@ shell_builtin_read(void FAST_FUNC (*setvar)(const char *name, const char *val),
 	if (ifs == NULL)
 		ifs = defifs;
 
-	if (nchars || (read_flags & BUILTIN_READ_SILENT)) {
+#ifndef __GNO__
+	if (nchars || (read_flags & BUILTIN_READ_SILENT))
+#endif
+	/* Always execute this on GNO.  We need to set CBREAK mode 
+	 * to ensure read() returns without waiting for a whole line. */
+	{
 #ifndef __GNO__
 		tcgetattr(fd, &tty);
 #else
 		ioctl(fd, TIOCGETP, &tty);
 #endif
 		old_tty = tty;
-		if (nchars) {
 #ifndef __GNO__
+		if (nchars) {
 			tty.c_lflag &= ~ICANON;
 			// Setting it to more than 1 breaks poll():
 			// it blocks even if there's data. !??
@@ -159,10 +164,10 @@ shell_builtin_read(void FAST_FUNC (*setvar)(const char *name, const char *val),
 			tty.c_cc[VMIN] = 1;
 			/* no timeout (reads block forever) */
 			tty.c_cc[VTIME] = 0;
-#else
-			tty.sg_flags |= CBREAK;
-#endif
 		}
+#else
+		tty.sg_flags |= CBREAK;
+#endif
 		if (read_flags & BUILTIN_READ_SILENT) {
 #ifndef __GNO__
 			tty.c_lflag &= ~(ECHO | ECHOK | ECHONL);
