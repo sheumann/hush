@@ -1,4 +1,0 @@
-#!/bin/sh
-
-# Make with appropriate flags for gcc or clang on modern *nix systems
-make -f Makefile.gmake CFLAGS="-std=c89 -funsigned-char -Wall -Wno-format-security -Wno-comment"

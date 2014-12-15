@@ -19,8 +19,6 @@ jmp_buf die_jmp;
 
 void FAST_FUNC xfunc_die(void)
 {
-	int forked;
-
 	if (die_sleep) {
 		if ((ENABLE_FEATURE_PREFER_APPLETS || ENABLE_HUSH)
 		 && die_sleep < 0

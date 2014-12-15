@@ -60,9 +60,8 @@ INCLUDES = -I include -I shell -I libbb
 DEFINES = -Dhush_main=main -DNDEBUG
 LIBS = -ltermcap
 
-OCC_FLAGS = -i -w -a0
-# Add $(OCC_FLAGS) to CFLAGS on dmake
-CFLAGS = $(null, $(OCC_FLAGS))
+# CFLAGS suitable for clang or GCC
+CFLAGS = -std=c89 -funsigned-char -Wall -Wno-comment -Wno-format-security
 
 PROG = hush
 
