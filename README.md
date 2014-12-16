@@ -7,6 +7,7 @@ of BusyBox.  In general, it implements most of the features you would expect,
 although there are a few missing ones (such as tilde expansion and aliases).
 
 Supported features include:
+
 * if/then/elif/else/fi conditionals
 * for/in/do/done loops
 * while loops
