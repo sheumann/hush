@@ -8639,8 +8639,13 @@ int hush_main(int argc, char **argv)
 			const char *hp = get_local_var_value("HISTFILE");
 			if (!hp) {
 				hp = get_local_var_value("HOME");
-				if (hp)
+				if (hp) {
+#  ifndef __GNO__
 					hp = concat_path_file(hp, ".hush_history");
+#  else
+					hp = concat_path_file(hp, "hushhistory");
+#  endif
+				}
 			} else {
 				hp = xstrdup(hp);
 			}
