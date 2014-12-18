@@ -2492,8 +2492,14 @@ int FAST_FUNC read_line_input(line_input_t *st, const char *prompt, char *comman
 	ioctl(STDIN_FILENO, TIOCSETN, &new_settings);
 	/* Contrary to documentation, tchars aren't fully disabled in CBREAK mode,
 	 * so do it explicitly.  Maybe other characters should be disabled too? */
+	/* Hack: GNO crashes if given -1 for t_intrc on a pty.  Specify a 
+	 * rarely-used control character instead in that case. */
 	new_tchars = initial_tchars;
-	new_tchars.t_intrc = (char)-1;	
+	if (ttyname(STDIN_FILENO) && strncmp(ttyname(STDIN_FILENO), ".ttyq", 5) != 0) {
+		new_tchars.t_intrc = (char)-1;
+	} else {
+		new_tchars.t_intrc = (char)30;
+	}
 	ioctl(STDIN_FILENO, TIOCSETC, &new_tchars);
 	new_ttyk = initial_ttyk | VT100ARROW | OAMAP | OA2META;
 	ioctl(STDIN_FILENO, TIOCSETK, &new_ttyk);
