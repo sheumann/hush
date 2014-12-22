@@ -110,6 +110,7 @@
 #endif
 
 #ifdef __GNO__
+# include <gsos.h>
 # define setpgid setpgid_is_broken_on_gno_206
 /* setpgid is broken in GNO 2.0.6: It doesn't actually change the pgrp for 
  * the process (but it does update the pgrp reference counts, effectively
@@ -933,6 +934,9 @@ static int builtin_continue(char **argv) FAST_FUNC;
 #if ENABLE_HUSH_FUNCTIONS
 static int builtin_return(char **argv) FAST_FUNC;
 #endif
+#ifdef __GNO__
+static int builtin_prefix(char **argv) FAST_FUNC;
+#endif
 
 /* Table of built-in functions.  They can be forked or not, depending on
  * context: within pipes, they fork.  As simple commands, they do not.
@@ -1004,6 +1008,9 @@ static const struct built_in_command bltins1[] = {
 	BLTIN("umask"    , builtin_umask   , "Set file creation mask"),
 	BLTIN("unset"    , builtin_unset   , "Unset variables"),
 	BLTIN("wait"     , builtin_wait    , "Wait for process"),
+#ifdef __GNO__
+	BLTIN("prefix"   , builtin_prefix  , "Set GS/OS prefixes"),
+#endif
 };
 /* For now, echo and test are unconditionally enabled.
  * Maybe make it configurable? */
@@ -9729,5 +9736,39 @@ static int FAST_FUNC builtin_return(char **argv)
 	 */
 	rc = parse_numeric_argv1(argv, G.last_exitcode, 0);
 	return rc;
+}
+#endif
+
+#ifdef __GNO__
+static int FAST_FUNC builtin_prefix(char **argv)
+{
+	unsigned prefix;
+	PrefixRecGS prefixrec;
+	
+	if (!argv[1] || !argv[2] || argv[3]) {
+		bb_error_msg("%s: invalid arguments", argv[0]);
+		return EXIT_FAILURE;
+	}
+	
+	errno = 0;
+	prefix = bb_strtou(argv[1], NULL, 10);
+	if (errno || prefix > 31) {
+		bb_error_msg("%s: invalid prefix number '%s'", argv[0], argv[1]);
+		return EXIT_FAILURE;
+	}
+	
+	prefixrec.pCount = 2;
+	prefixrec.prefixNum = prefix;
+	prefixrec.buffer.setPrefix = __C2GSMALLOC(argv[2]);
+	if (prefixrec.buffer.setPrefix == NULL) {
+		bb_error_msg("%s: memory allocation failure", argv[0]);
+		return EXIT_FAILURE;
+	}
+	
+	SetPrefix(&prefixrec);
+	
+	GIfree(prefixrec.buffer.setPrefix);
+	
+	return EXIT_SUCCESS;
 }
 #endif
