@@ -1405,8 +1405,6 @@ int read_line_input(const char* prompt, char* command, int maxsize) FAST_FUNC;
 	read_line_input(prompt, command, maxsize)
 #endif
 
-void init_termcap(void);
-
 
 #ifndef COMM_LEN
 # ifdef TASK_COMM_LEN

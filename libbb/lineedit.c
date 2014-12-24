@@ -135,6 +135,7 @@ char *right_cmd = ESC"[C";
 char *clear_to_end_of_screen_cmd = ESC"[J";
 #endif
 
+char *old_term = NULL;
 char termcap_string_buf[TERMCAP_BUFSIZ];
 
 /* Terminal escape sequences to process in input (used by read_key) */
@@ -257,7 +258,7 @@ static void add_escape_seq_from_termcap(char *termcap_code, signed char keycode,
 	}
 }
 
-void init_termcap(void)
+static void init_termcap(void)
 {
 	char *term;
 	char *termcap_buffer;
@@ -267,6 +268,11 @@ void init_termcap(void)
 	term = getenv("TERM");
 	if (term == NULL) 
 		term = DEFAULT_TERM;
+	if (old_term && strcmp(term, old_term) == 0) 
+		return;
+	free(old_term);
+	old_term = strdup(term);
+	
 	termcap_buffer = malloc(TERMCAP_BUFSIZ);
 	if (termcap_buffer == NULL)
 		return;
@@ -292,14 +298,14 @@ void init_termcap(void)
 	add_escape_seq_from_termcap("ku", KEYCODE_UP, &string_buf);
 	add_escape_seq_from_termcap("kd", KEYCODE_DOWN, &string_buf);
 	add_escape_seq_from_termcap("kl", KEYCODE_LEFT, &string_buf);
-	if (strcmp(LAST_ESCAPE_SEQ(), ESC"[D") == 0) {
+	if (n_escape_seqs && strcmp(LAST_ESCAPE_SEQ(), ESC"[D") == 0) {
 		add_escape_seq(ESC"[1;3D", KEYCODE_ALT_LEFT);
 		add_escape_seq(ESC"[1;9D", KEYCODE_ALT_LEFT);	// xterm on OS X: command-left 
 		add_escape_seq(ESC"b", KEYCODE_ALT_LEFT);		// OS X Terminal: option-left
 		add_escape_seq(ESC"[1;5D", KEYCODE_CTRL_LEFT);
 	}
 	add_escape_seq_from_termcap("kr", KEYCODE_RIGHT, &string_buf);
-	if (strcmp(LAST_ESCAPE_SEQ(), ESC"[C") == 0) {
+	if (n_escape_seqs && strcmp(LAST_ESCAPE_SEQ(), ESC"[C") == 0) {
 		add_escape_seq(ESC"[1;3C", KEYCODE_ALT_RIGHT);
 		add_escape_seq(ESC"[1;9C", KEYCODE_ALT_RIGHT);	// xterm on OS X: command-right 
 		add_escape_seq(ESC"f", KEYCODE_ALT_RIGHT);		// OS X Terminal: option-right
@@ -2443,6 +2449,7 @@ int FAST_FUNC read_line_input(line_input_t *st, const char *prompt, char *comman
 	}
 
 	init_unicode();
+	init_termcap();
 
 // FIXME: audit & improve this
 	if (maxsize > MAX_LINELEN)

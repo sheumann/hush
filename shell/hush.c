@@ -8349,7 +8349,6 @@ int hush_main(int argc, char **argv)
 #endif
 
 #if ENABLE_FEATURE_EDITING
-	init_termcap();
 	G.line_input_state = new_line_input_t(FOR_SHELL);
 #endif
 
