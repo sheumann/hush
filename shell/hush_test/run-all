@@ -9,15 +9,23 @@ unset LC_NUMERIC
 unset LC_TIME
 unset LC_ALL
 
+if test $(uname) = "GNO/ME"; then
+	is_gno=true
+	
+	mv () { cp -p mv $@; }
+	rm () { cp -p rm $@; }
+fi
+
 if test ! -x hush; then
-	if test ! -x ../../busybox; then
+	if test ! -x ../../hush; then
 		echo "Can't run tests. Put hush binary into this directory (`pwd`)"
 		exit 1
 	fi
-	echo "No ./hush - creating a link to ../../busybox"
-	ln -s ../../busybox hush
+	THIS_SH="`pwd`/../../hush"
+else
+	THIS_SH="`pwd`/hush"
 fi
-if test ! -f .config; then
+if test ! -f ./.config; then
 	if test ! -f ../../.config; then
 		echo "Missing .config file"
 		exit 1
@@ -25,12 +33,11 @@ if test ! -f .config; then
 	cp ../../.config . || exit 1
 fi
 
-eval $(sed -e '/^#/d' -e '/^$/d' -e 's:^:export :' .config)
+eval $(sed -e '/^#/d' -e '/^$/d' -e 's:^:export :' ./.config)
 
 PATH="`pwd`:$PATH" # for hush and recho/zecho/printenv
 export PATH
 
-THIS_SH="`pwd`/hush"
 export THIS_SH
 
 do_test()
@@ -49,8 +56,8 @@ do_test()
 			#*) echo $x ; sh $x ;;
 			*)
 			echo -n "$1/$x:"
-			sh "$x" >"../$1-$x.fail" 2>&1 && \
-			{ { echo " ok"; rm "../$1-$x.fail"; } || echo " fail"; }
+			sh "$x" >"../$1/${x%%.tests}.fail" 2>&1 && \
+			{ { echo " ok"; rm "../$1/${x%%.tests}.fail"; } || echo " fail"; }
 			;;
 		esac
 	done
@@ -65,17 +72,24 @@ do_test()
 	(
 		"$THIS_SH" "./$x" >"$name.xx" 2>&1
 		# filter C library differences
-		sed -i \
+		sed \
 			-e "/: invalid option /s:'::g" \
-			"$name.xx"
-		test $? -eq 77 && rm -f "../$1-$x.fail" && exit 77
-		diff -u "$name.xx" "$name.right" >"../$1-$x.fail" && rm -f "$name.xx" "../$1-$x.fail"
+			"$name.xx" > "$name.yy"
+		mv "$name.yy" "$name.xx"
+		if [ $is_gno ]; then
+			tr '\n' '\r' < "$name.right" > "$name.rt"
+		else
+			ln -s "$name.right" "$name.rt"
+		fi
+		test $? -eq 77 && rm -f "../$1/${x%%.tests}.fail" && exit 77
+		diff -u "$name.xx" "$name.rt" >"../$1/${x%%.tests}.fail" && rm -f "$name.xx" "../$1/${x%%.tests}.fail"
 	)
 	case $? in
 		0)  echo " ok";;
 		77) echo " skip (feature disabled)";;
 		*)  echo " fail"; tret=1;;
 	esac
+	rm "$name.rt"
 	done
 	exit ${tret}
 	)
