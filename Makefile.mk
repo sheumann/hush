@@ -103,7 +103,7 @@ LIBS = -l/usr/lib/libtermcap.204
 # Optimize bit 6 breaks some standard-compliant varargs code,
 # and bits 0, 4, and 5 have known bugs.  Disable for now.
 CFLAGS = -i -w -a1 -O8
-STACKSIZE = 4096
+STACKSIZE = 3072
 
 .IF $(DEBUG)
 CFLAGS += -g -DDEBUG
