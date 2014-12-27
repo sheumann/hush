@@ -2438,15 +2438,19 @@ int FAST_FUNC read_line_input(line_input_t *st, const char *prompt, char *comman
 
 #ifndef __GNO__
 	if (tcgetattr(STDIN_FILENO, &initial_settings) < 0
-	 || !(initial_settings.c_lflag & ECHO)
+	 || (initial_settings.c_lflag & (ECHO|ICANON)) == ICANON
 #else
 	if (ioctl(STDIN_FILENO, TIOCGETP, &initial_settings) < 0
 	 || ioctl(STDIN_FILENO, TIOCGETC, &initial_tchars) < 0
 	 || ioctl(STDIN_FILENO, TIOCGETK, &initial_ttyk) < 0
-	 || !(initial_settings.sg_flags & ECHO)
+	 || (initial_settings.sg_flags & (ECHO|CBREAK|RAW)) == 0
 #endif
 	) {
-		/* Happens when e.g. stty -echo was run before */
+		/* Happens when e.g. stty -echo was run before.
+		 * But if ICANON is not set, we don't come here.
+		 * (example: interactive python ^Z-backgrounded,
+		 * tty is still in "raw mode").
+		 */
 		parse_and_put_prompt(prompt);
 		/* fflush_all(); - done by parse_and_put_prompt */
 		if (fgets(command, maxsize, stdin) == NULL)
@@ -2815,7 +2819,7 @@ int FAST_FUNC read_line_input(line_input_t *st, const char *prompt, char *comman
 			 * standard readline bindings (IOW: bash) do.
 			 * Often, Alt-<key> generates ESC-<key>.
 			 */
-			ic = lineedit_read_key(read_key_buffer, timeout);
+			ic = lineedit_read_key(read_key_buffer, 50);
 			switch (ic) {
 				//case KEYCODE_LEFT: - bash doesn't do this
 				case 'b':
