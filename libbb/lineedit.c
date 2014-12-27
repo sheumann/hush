@@ -276,7 +276,10 @@ static void init_termcap(void)
 	termcap_buffer = malloc(TERMCAP_BUFSIZ);
 	if (termcap_buffer == NULL)
 		return;
-	tgetent(termcap_buffer, term);
+	if (tgetent(termcap_buffer, term) != 1) {
+		free(termcap_buffer);
+		return;
+	}
 	
 	result = tgetstr("up", &string_buf);
 	if (result != NULL)
