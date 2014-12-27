@@ -1,1 +1,0 @@
-udl -g include/*.h coreutils/*.c libbb/*.c shell/*.c shell/*.h Makefile

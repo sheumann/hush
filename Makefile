@@ -54,6 +54,24 @@ SRCS = \
 	libbb/get.exec.path.c \
 	libbb/pgrp.c \
 	libbb/qsort.c
+
+HEADERS = \
+	include/NUM.APPLETS.h \
+	include/appltmetadata.h \
+	include/autoconf.h \
+	include/busybox.h \
+	include/libbb.h \
+	include/platform.h \
+	include/poll.h \
+	include/unicode.h \
+	include/xatonum.h \
+	shell/glob.h \
+	shell/match.h \
+	shell/math.h \
+	shell/random.h \
+	shell/shell.common.h \
+	libbb/xatonum.tmplt.c
+
 OBJS = $(SRCS:.c=.o)
 
 INCLUDES = -I include -I shell -I libbb
@@ -68,6 +86,7 @@ PROG = hush
 $(PROG): $(OBJS)
 	$(CC) $(LIBS) $(OBJS) -o $@
 
+$(OBJS): $(HEADERS)
 %.o: %.c
 	$(CC) $(INCLUDES) $(DEFINES) $(CFLAGS) -c $< -o $@
 

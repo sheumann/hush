@@ -70,7 +70,24 @@ LIBBB_D_SRC = \
 	libbb/unicode.c \
 	libbb/vfork.and.run.c \
 	libbb/waitpid.emul.c
-	
+
+HEADERS = \
+	include/NUM.APPLETS.h \
+	include/appltmetadata.h \
+	include/autoconf.h \
+	include/busybox.h \
+	include/libbb.h \
+	include/platform.h \
+	include/poll.h \
+	include/unicode.h \
+	include/xatonum.h \
+	shell/glob.h \
+	shell/match.h \
+	shell/math.h \
+	shell/random.h \
+	shell/shell.common.h \
+	libbb/xatonum.tmplt.c
+
 SRCS = $(MAIN_SRC) $(SHELL_OTHER_SRC) $(COREUTILS_SRC) $(LIBBB_A_SRC) \
 	$(LIBBB_B_SRC) $(LIBBB_C_SRC) $(LIBBB_D_SRC)
 OBJS = $(SRCS:.c=.o)
@@ -114,6 +131,7 @@ PROG = hush
 $(PROG): $(OBJS)
 	$(CC) $(LIBS) $(OBJS) -o $@
 
+$(OBJS): $(HEADERS)
 %.o: %.c
 	$(CC) $(INCLUDES) $(DEFINES) $(CFLAGS) -c $< -o $@ \
 		$(eq,$<,$(MAIN_SRC) -s$(STACKSIZE) -r) \
@@ -127,3 +145,17 @@ $(PROG): $(OBJS)
 .PHONY: clean
 clean:
 	$(RM) $(OBJS) $(ROOT) $(PROG)
+
+.PHONY: chtyp
+chtyp:
+	chtyp -l cc include/*.h coreutils/*.c libbb/*.c shell/*.c shell/*.h
+	chtyp -t txt LICENSE README* Makefile* notes/*
+
+.PHONY: build
+.SEQUENTIAL: build
+build: chtyp $(PROG)
+
+.PHONY: texttogs
+texttogs:
+	udl -g include/*.h coreutils/*.c libbb/*.c shell/*.c shell/*.h \
+		LICENSE README* Makefile* notes/*
