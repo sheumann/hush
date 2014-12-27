@@ -6512,6 +6512,7 @@ static void restore_redirects(int squirrel[])
 static char *find_in_path(const char *arg)
 {
 	char *ret = NULL;
+#ifndef __GNO__
 	const char *PATH = get_local_var_value("PATH");
 
 	if (!PATH)
@@ -6538,6 +6539,13 @@ static char *find_in_path(const char *arg)
 		}
 		PATH = end + 1;
 	}
+#else
+	ret = buildPath(arg);
+	if (ret && access(ret, F_OK) != 0) {
+		free(ret);
+		return NULL;
+	}
+#endif
 
 	return ret;
 }

@@ -853,6 +853,12 @@ enum {
 	FIND_FILE_ONLY = 2
 };
 
+#ifndef __GNO__
+# define PATH_SEP ':'
+#else
+# define PATH_SEP ' '
+#endif
+
 static int path_parse(char ***p)
 {
 	int npth;
@@ -872,7 +878,7 @@ static int path_parse(char ***p)
 	tmp = (char*)pth;
 	npth = 1; /* path component count */
 	while (1) {
-		tmp = strchr(tmp, ':');
+		tmp = strchr(tmp, PATH_SEP);
 		if (!tmp)
 			break;
 		tmp++;
@@ -885,7 +891,7 @@ static int path_parse(char ***p)
 	res[0] = tmp = xstrdup(pth);
 	npth = 1;
 	while (1) {
-		tmp = strchr(tmp, ':');
+		tmp = strchr(tmp, PATH_SEP);
 		if (!tmp)
 			break;
 		*tmp++ = '\0'; /* ':' -> '\0' */
