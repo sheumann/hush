@@ -102,7 +102,7 @@ LIBS = -l/usr/lib/libtermcap.204
 # optimize bit 3 set (no stack repair code).
 # Optimize bit 6 breaks some standard-compliant varargs code,
 # and bits 0, 4, and 5 have known bugs.  Disable for now.
-CFLAGS = -i -w -a1 -O8
+CFLAGS = -i -w -a1 -O14
 STACKSIZE = 3072
 
 .IF $(DEBUG)
