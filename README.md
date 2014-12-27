@@ -22,6 +22,12 @@ Supported features include:
 * job control
 * and much more...
 
+The (useful) command line options are:
+
+    hush [-nxl] [-c 'SCRIPT' [ARG0 [ARGS]] / FILE [ARGS]]
+
+These all behave similarly to other Bourne/POSIX-style shells (e.g. Bash).
+Run `help` within hush to get a list of built-in commands.
 
 Installation
 ------------
@@ -29,11 +35,14 @@ To use hush, you need GNO 2.0.6.  Just copy the "hush" binary to a suitable
 location. (You may want to install it as /bin/sh to support portable scripts
 that expect a Bourne-type shell in that location).
 
+Building
+--------
 To build it, you also need ORCA/C 2.1.x and plenty of memory (8MB is enough).
-Run `make` or (if the source files don't have correct filetypes) `./build.gs`.
+You also need to have a copy of the ltermcap library from GNO 2.0.4 installed
+as `/usr/lib/libtermcap.204` (the GNO 2.0.6 version is broken and won't work).
+Run `make` or (if the source files don't have correct filetypes) `make build`.
 You should also be able to build it on modern *nix systems by running `make`,
 although this is meant mainly for testing purposes.
-
 
 GNO-specific notes and known issues
 -----------------------------------
@@ -47,9 +56,7 @@ GNO-specific notes and known issues
 * Glob expansion doesn't work with patterns containing : directory separators.
   Use / separators instead.
 
-* Hush currently crashes when used interactively in TMTerm or GSI (scripts 
-  should work, though).
-
+* In TMTerm, command-line editing operations can produce messed-up formatting.
 
 License
 -------
