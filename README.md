@@ -58,6 +58,23 @@ GNO-specific notes and known issues
 
 * In TMTerm, command-line editing operations can produce messed-up formatting.
 
+Startup files
+-------------
+This version of hush will read commands from several files at startup, if they
+are present:
+
+* First, it runs commands from `/etc/hushenv`, then from `$HOME/hushenv`.
+
+* Next, if it is a login shell, it runs commands from `/etc/profile`, then
+  from `$HOME/hushprofile` (if it is present) or `$HOME/profile`.
+
+* Finally, if it is an interactive shell, it runs commands from 
+  `$HOME/hushrc`.
+
+(It also supports versions of the user startup files with names starting with 
+`.`, which will be used preferentially if present, but these names are not 
+compatible with ProDOS filesystems.)
+
 License
 -------
 Hush is licensed under the GNU General Public License version 2, contained in

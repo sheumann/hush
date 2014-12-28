@@ -8228,6 +8228,63 @@ static int set_mode(int state, char mode, const char *o_opt)
 	return EXIT_SUCCESS;
 }
 
+static bool source_startup_file(const char *path)
+{
+	FILE *input = fopen_for_read(path);
+	if (input != NULL) {
+		close_on_exec_on(fileno(input));
+		install_special_sighandlers();
+		parse_and_run_file(input);
+		fclose(input);
+		return 1;
+	}
+	return 0;
+}
+
+static void source_user_startup_files(const char * const *files)
+{
+	int i;
+	const char *home;
+	
+	if (getuid() == geteuid() && getgid() == getegid()) {
+		home = get_local_var_value("HOME");
+		if (home) {
+			for (i = 0; files[i] != NULL; i++) {
+				bool found;
+				char *path = concat_path_file(home, files[i]);
+				found = source_startup_file(path);
+				free(path);
+				if (found)
+					break;
+			}
+		}
+	}
+}
+
+static const char *global_env = "/etc/hushenv";
+
+static const char* const user_envs[] = {
+	".hushenv",
+	"hushenv",
+	NULL
+};
+
+static const char *global_profile = "/etc/profile";
+
+static const char* const user_profiles[] = {
+	".hushprofile",
+	"hushprofile",
+	".profile",
+	"profile",
+	NULL
+};
+
+static const char* const user_rcs[] = {
+	".hushrc",
+	"hushrc",
+	NULL
+};
+
 int hush_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
 int hush_main(int argc, char **argv)
 {
@@ -8431,6 +8488,10 @@ int hush_main(int argc, char **argv)
 				G.global_argv[0] = argv[0];
 				G.global_argc++;
 			} /* else -c 'script' ARG0 [ARG1...]: $0 is ARG0 */
+			if (G.root_pid == getpid()) {
+				source_startup_file(global_env);
+				source_user_startup_files(user_envs);
+			}
 			install_special_sighandlers();
 			parse_and_run_string(G.root_pid != getpid() ? decode_arg(optarg) : optarg);
 			goto final_return;
@@ -8521,17 +8582,15 @@ int hush_main(int argc, char **argv)
 		G.root_ppid = getppid();
 	}
 
+	if (G.root_pid == getpid()) {
+		source_startup_file(global_env);
+		source_user_startup_files(user_envs);
+	}
+
 	/* If we are login shell... */
 	if (flags & OPT_login) {
-		FILE *input;
 		debug_printf(("sourcing /etc/profile\n"));
-		input = fopen_for_read("/etc/profile");
-		if (input != NULL) {
-			close_on_exec_on(fileno(input));
-			install_special_sighandlers();
-			parse_and_run_file(input);
-			fclose(input);
-		}
+		source_startup_file(global_profile);
 		/* bash: after sourcing /etc/profile,
 		 * tries to source (in the given order):
 		 * ~/.bash_profile, ~/.bash_login, ~/.profile,
@@ -8539,6 +8598,7 @@ int hush_main(int argc, char **argv)
 		 * bash also sources ~/.bash_logout on exit.
 		 * If called as sh, skips .bash_XXX files.
 		 */
+		source_user_startup_files(user_profiles);
 	}
 
 	if (G.global_argv[1]) {
@@ -8701,6 +8761,10 @@ int hush_main(int argc, char **argv)
 	 * if interactive but not a login shell, sources ~/.bashrc
 	 * (--norc turns this off, --rcfile <file> overrides)
 	 */
+	if (G_interactive_fd && G.root_pid == getpid()) {		
+		source_user_startup_files(user_rcs);
+		install_special_sighandlers();
+	}
 
 	if (!ENABLE_FEATURE_SH_EXTRA_QUIET && G_interactive_fd) {
 		/* note: ash and hush share this string */
