@@ -7985,6 +7985,11 @@ static int run_list(struct pipe *pi)
 				 * and we don't need to wait for anything. */
 				G.last_exitcode = rcode;
 				debug_printf_exec((": builtin/func exitcode %d\n", rcode));
+#if ENABLE_HUSH_JOB
+				if (G.run_list_level == 1 && G_interactive_fd) {
+					tc_set_to_my_pgrp(G_interactive_fd);
+				}
+#endif
 				check_and_run_traps();
 #if ENABLE_HUSH_LOOPS
 				/* Was it "break" or "continue"? */
