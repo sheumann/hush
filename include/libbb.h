@@ -24,6 +24,15 @@
 # define sigemptyset(s)   __sigemptyset(s)
 # define sigisemptyset(s) __sigisemptyset(s)
 #endif
+#ifdef __GNO__
+/* Redefine these because GNO 2.0.6 definitions only support signals up to 16 */
+# undef sigaddset
+# undef sigdelset
+# undef sigismember
+# define sigaddset(set, signo)   (*(set) |= (sigset_t)1 << ((signo) - 1), 0)
+# define sigdelset(set, signo)   (*(set) &= ~((sigset_t)1 << ((signo) - 1)), 0)
+# define sigismember(set, signo) ((*(set) & ((sigset_t)1 << ((signo) - 1))) != 0)
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
