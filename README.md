@@ -75,6 +75,9 @@ are present:
 `.`, which will be used preferentially if present, but these names are not 
 compatible with ProDOS filesystems.)
 
+The `etc` directory contains sample `hushenv` and `profile` scripts, suitable
+for installation in `/etc` or in your home directory.
+
 License
 -------
 Hush is licensed under the GNU General Public License version 2, contained in

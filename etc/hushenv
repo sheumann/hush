@@ -1,0 +1,1 @@
+# Sample hushenv file for GNO.# Can be installed as /etc/hushenv or $HOME/hushenv.# Define standard commands that don't exist as binaries in GNO 2.0.6rm () { cp -p rm $@; }mv () { cp -p mv $@; }make () { dmake $@; }# Use gsh to run a few of its builtins that hush doesn't haveedit () { gsh edit $@; }setdebug () { gsh setdebug $@; }

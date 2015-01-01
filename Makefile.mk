@@ -149,7 +149,7 @@ clean:
 .PHONY: chtyp
 chtyp:
 	chtyp -l cc include/*.h coreutils/*.c libbb/*.c shell/*.c shell/*.h
-	chtyp -t txt LICENSE README* Makefile* notes/*
+	chtyp -t txt LICENSE README* Makefile* notes/* etc/*
 
 .PHONY: build
 .SEQUENTIAL: build
