@@ -8116,6 +8116,128 @@ static int run_and_free_list(struct pipe *pi)
 }
 
 
+#ifdef __GNO__
+# pragma databank 1
+# undef wait
+
+char *build_args(char *const *argv);
+
+struct do_system_args {
+	char *command;
+	//sig_t orig_sigint;
+	//sig_t orig_sigquit;
+	long orig_sigmask;
+};
+
+static void do_system(void *args_ptr)
+{
+	char *argv[5];
+	char *cmdline;
+	int retval = 127;
+	struct do_system_args *args = (struct do_system_args *)args_ptr;
+	
+	//signal(SIGINT, args->orig_sigint);
+	//signal(SIGQUIT, args->orig_sigquit);
+	sigsetmask(args->orig_sigmask);
+	
+	argv[0] = hush_exec_path;
+	argv[1] = "-E";
+	argv[2] = "-c";
+	argv[3] = alloc_for_current_process(strlen(args->command) + 1);
+	argv[4] = NULL;
+	
+	if (argv[3] == NULL)
+		goto ret;
+	strcpy(argv[3], args->command);
+	encode_arg(argv[3]);
+	
+	cmdline = build_args(argv);
+	if (cmdline == NULL)
+		goto ret;
+		
+	_execve(hush_exec_path, cmdline);
+
+ret:
+	/* _execve failed.  Exit without doing inappropriate cleanup. */
+	while (1) {
+		asm {
+			lda retval
+			pha
+			jsl 0xE100A8
+			dcw 0x2029	/* QuitGS */
+			dcl quitRec;
+			pla
+		}
+	}
+}
+
+/* If hush is invoked as a login shell, we set things up so this will
+ * be invoked when a descendant process calls "system()". 
+ * Note that this is run in the context of the descendant process
+ * (but with databank set to access hush's globals). */
+static int systemvec(const char *command)
+{
+	struct do_system_args args;
+	int pid;
+	union wait status;
+	int waited_pid;
+	int retval;
+
+	/* system(NULL) tests if a command processor (the shell) is available */
+	if (command == NULL)
+		return -1;
+
+	/* Signal handling as per POSIX.1-2008 spec for system(). */
+	/* Partially disabled because it's contrary to traditional 
+	 * GNO practice in gsh's implementation of system(). */
+	//args.orig_sigint = signal(SIGINT, SIG_IGN);
+	//args.orig_sigquit = signal(SIGQUIT, SIG_IGN);
+	args.orig_sigmask = sigblock(SIGCHLD);
+
+	args.command = command;
+
+	pid = fork2(do_system, 512, 0, "system() executor", 
+				sizeof(&args) / 2, &args);
+	if (pid == -1) {
+		retval = -1;
+		goto ret;
+	}
+	
+ repeat_wait:
+ 	/* We're waiting in the child process, so we can't use hush's waitpid
+ 	 * implementation.  This code may "steal" the wait results for other 
+ 	 * children of this process (if any), but it's about the best we can do.
+ 	 */
+	waited_pid = wait(&status);
+	if (waited_pid < 0) {
+		if (errno == EINTR) {
+			goto repeat_wait;
+		} else {
+			retval = -1;
+			goto ret;
+		}
+	}
+	if (waited_pid != pid || WIFSTOPPED(status))
+		goto repeat_wait;
+	
+	if (WIFEXITED(status))
+		retval = WEXITSTATUS(status);
+	else if (WIFSIGNALED(status))
+		retval = 128 + WTERMSIG(status);
+	else
+		retval = -1;
+
+ ret:
+ 	//signal(SIGINT, args.orig_sigint);
+ 	//signal(SIGQUIT, args.orig_sigquit);
+ 	sigsetmask(args.orig_sigmask);
+ 	return retval;
+}
+# define wait wait_wrapper
+# pragma databank 0
+#endif
+
+
 static void install_sighandlers(unsigned long mask)
 {
 	sighandler_t old_handler;
@@ -8294,7 +8416,8 @@ int hush_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
 int hush_main(int argc, char **argv)
 {
 	enum {
-		OPT_login = (1 << 0)
+		OPT_login = (1 << 0),
+		OPT_decode = (1 << 1)
 	};
 	unsigned flags;
 	int opt;
@@ -8445,6 +8568,9 @@ int hush_main(int argc, char **argv)
 	builtin_argc = 0;
 	while (1) {
 		opt = getopt(argc, argv, "+c:xinsl"
+#ifdef __GNO__
+				"E"
+#endif
 #if !BB_MMU
 				"<:$:R:V:"
 # if ENABLE_HUSH_FUNCTIONS
@@ -8498,7 +8624,8 @@ int hush_main(int argc, char **argv)
 				source_user_startup_files(user_envs);
 			}
 			install_special_sighandlers();
-			parse_and_run_string(G.root_pid != getpid() ? decode_arg(optarg) : optarg);
+			parse_and_run_string(G.root_pid != getpid() || (flags & OPT_decode) 
+								 ? decode_arg(optarg) : optarg);
 			goto final_return;
 		case 'i':
 			/* Well, we cannot just declare interactiveness,
@@ -8562,6 +8689,11 @@ int hush_main(int argc, char **argv)
 		}
 # endif
 #endif
+#ifdef __GNO__
+		case 'E':
+			flags |= OPT_decode;
+			break;
+#endif
 		case 'n':
 		case 'x':
 			if (set_mode(1, opt, NULL) == 0) /* no error */
@@ -8594,6 +8726,11 @@ int hush_main(int argc, char **argv)
 
 	/* If we are login shell... */
 	if (flags & OPT_login) {
+#ifdef __GNO__
+		/* If we're the login shell, set ourselves up to process
+		 * system() and ORCA shell-style Execute calls. */
+		setsystemvector(systemvec);
+#endif
 		debug_printf(("sourcing /etc/profile\n"));
 		source_startup_file(global_profile);
 		/* bash: after sourcing /etc/profile,

@@ -89,7 +89,7 @@ void dealloc_for_current_process(void *ptr)
 /* Build a single args string out of argv, with quoting.
  * Returns the (alloc_for_current_process'd) args string, or NULL on error.
  */
-static char *build_args(char *const *argv)
+char *build_args(char *const *argv)
 {
 	char *args;
 	size_t argslen = 0;
