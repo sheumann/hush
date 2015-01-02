@@ -28,7 +28,18 @@ int32_t FAST_FUNC read_key(int fd, char *buffer, int timeout)
 		 * If requested, wait TIMEOUT ms. TIMEOUT = -1 is useful
 		 * if fd can be in non-blocking mode.
 		 */
-		if (timeout >= -1) {
+		/* On GNO, skip the poll if timeout == -1.
+		 * It's pointless, since non-blocking mode isn't implemented,
+		 * and it seems to hang in certain cases (e.g. where another 
+		 * process was interrupted while reading from the terminal).
+		 * This may be due to bugs in the underlying select() implementation.
+		 */
+#ifndef __GNO__
+		if (timeout >= -1) 
+#else
+		if (timeout >= 0) 
+#endif
+		{
 			if (safe_poll(&pfd, 1, timeout) == 0) {
 				/* Timed out */
 				errno = EAGAIN;
