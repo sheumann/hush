@@ -61,6 +61,8 @@
 # define ENABLE_FEATURE_USERNAME_COMPLETION 0
 #endif
 
+#define DEFAULT_HISTORY 25
+
 
 /* Entire file (except TESTing part) sits inside this #if */
 #if ENABLE_FEATURE_EDITING
@@ -1428,14 +1430,14 @@ line_input_t* FAST_FUNC new_line_input_t(int flags)
 
 unsigned FAST_FUNC size_from_HISTFILESIZE(const char *hp)
 {
-	int size = MAX_HISTORY;
+	int size = DEFAULT_HISTORY;
 	if (hp) {
 		size = atoi(hp);
 		if (size <= 0)
 			return 1;
-		if (size > MAX_HISTORY)
-			return MAX_HISTORY;
 	}
+	if (size > MAX_HISTORY)
+		return MAX_HISTORY;
 	return size;
 }
 
@@ -1606,7 +1608,15 @@ void save_history(line_input_t *st)
 		load_history(st_temp);
 
 		/* write out temp file and replace hist_file atomically */
+#ifndef __GNO__
 		new_name = xasprintf("%s.%u.new", st->hist_file, (int) getpid());
+#else
+		new_name = dirname(st->hist_file);
+		new_name = xasprintf("%s%chushhist.%u", 
+							 new_name, 
+							 (strchr(new_name, ':') != NULL) ? ':' : '/', 
+							 (int) getpid());
+#endif
 		fd = open(new_name, O_WRONLY | O_CREAT | O_TRUNC, 0600);
 		if (fd >= 0) {
 			fp = xfdopen_for_write(fd);
@@ -1655,7 +1665,15 @@ static void save_history(char *str)
 		load_history(st_temp);
 
 		/* write out temp file and replace hist_file atomically */
+#ifndef __GNO__
 		new_name = xasprintf("%s.%u.new", state->hist_file, (int) getpid());
+#else
+		new_name = dirname(state->hist_file);
+		new_name = xasprintf("%s%chushhist.%u", 
+							 new_name, 
+							 (strchr(new_name, ':') != NULL) ? ':' : '/', 
+							 (int) getpid());
+#endif
 		fd = open(new_name, O_WRONLY | O_CREAT | O_TRUNC, 0600);
 		if (fd >= 0) {
 			FILE *fp;
