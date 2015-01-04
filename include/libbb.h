@@ -62,6 +62,11 @@
 # include <sys/sysmacros.h>
 #endif
 #include <sys/wait.h>
+#ifdef __GNO__
+/* Fix definition of WEXITSTATUS to support values with the high bit set. */
+# undef WEXITSTATUS
+# define WEXITSTATUS(x)	(((*(int *)&(x)) >> 8) & 0xFF)
+#endif
 #include <time.h>
 #include <sys/param.h>
 #include <pwd.h>
