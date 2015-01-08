@@ -128,6 +128,7 @@ char *up_cmd = "\037"; // ^_
 char *home_cmd = "\031"; // ^Y
 char *right_cmd = "\025"; // ^U
 char *clear_to_end_of_screen_cmd = "\013"; // ^K
+char *normal_cursor_cmd = "\002\005"; // ^B^E
 #else
 # define TERMCAP_BUFSIZ 4096
 # define DEFAULT_TERM "vt100"
@@ -135,6 +136,7 @@ char *up_cmd = ESC"[A";
 char *home_cmd = ESC"[H";
 char *right_cmd = ESC"[C";
 char *clear_to_end_of_screen_cmd = ESC"[J";
+char *normal_cursor_cmd = "";
 #endif
 
 char *old_term = NULL;
@@ -284,20 +286,19 @@ static void init_termcap(void)
 	}
 	
 	result = tgetstr("up", &string_buf);
-	if (result != NULL)
-		up_cmd = result;
+	up_cmd = result ? result : "";
 	
 	result = tgetstr("ho", &string_buf);
-	if (result != NULL)
-		home_cmd = result;
+	home_cmd = result ? result : "";
 	
 	result = tgetstr("nd", &string_buf);
-	if (result != NULL)
-		right_cmd = result;
+	right_cmd = result ? result : "";
 	
 	result = tgetstr("cd", &string_buf);
-	if (result != NULL)
-		clear_to_end_of_screen_cmd = result;
+	clear_to_end_of_screen_cmd = result ? result : "";
+	
+	result = tgetstr("ve", &string_buf);
+	normal_cursor_cmd = result ? result : "";
 		
 	n_escape_seqs = 0;
 	add_escape_seq_from_termcap("ku", KEYCODE_UP, &string_buf);
@@ -2563,6 +2564,7 @@ int FAST_FUNC read_line_input(line_input_t *st, const char *prompt, char *comman
 
 	/* Print out the command prompt, optionally ask where cursor is */
 	parse_and_put_prompt(prompt);
+	tputs(normal_cursor_cmd, 1, bb_putchar);
 	ask_terminal();
 
 	/* Install window resize handler (NB: after *all* init is complete) */
