@@ -166,6 +166,15 @@ int echo_main(int argc UNUSED_PARAM, char **argv)
 	}
 
  do_write:
+ #ifdef __GNO__
+ 	{
+ 		char *ch;
+ 		for (ch = buffer; ch < out; ++ch) {
+ 			if (*ch == '\n')
+ 				*ch = '\r';
+ 		}
+ 	}
+ #endif
 	/* Careful to error out on partial writes too (think ENOSPC!) */
 	errno = 0;
 	/*r =*/ full_write(STDOUT_FILENO, buffer, out - buffer);
