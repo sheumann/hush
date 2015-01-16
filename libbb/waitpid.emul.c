@@ -84,6 +84,7 @@ pid_t waitpid_emul (pid_t pid, int *stat_loc, int options)
 				sig_t prev_sig;
 				int prev_errno;
 				
+ restart:
 				if (options & WNOHANG) {
 					/* Arrange for a signal to interrupt the wait to simulate
 					 * non-blocking semantics.  This might cause spurious 
@@ -108,9 +109,17 @@ pid_t waitpid_emul (pid_t pid, int *stat_loc, int options)
 						 * as a successful return with no finished child found. */
 						errno = prev_errno;
 						return 0;
+					} else {
+						errno = wait_errno;
 					}
 				}
 				
+				if (p == -1 && errno == EINTR) {
+					/* Hush originally set SA_RESTART option on all caught signals. 
+					 * GNO doesn't have this, so try to emulate it here. */
+					goto restart;
+				}
+					
 				if (p < 0)
 					return p;
 				if (p == pid || pid == -1)
