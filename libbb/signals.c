@@ -53,3 +53,38 @@ void FAST_FUNC kill_myself_with_sig(int sig)
 	raise(sig);
 	_exit(sig | 128); /* Should not reach it */
 }
+
+#ifdef __GNO__
+/* Include our own version of sigprocmask, because the one in 
+ * GNO 2.0.6 libc is broken for SIG_SETMASK and SIG_UNBLOCK cases 
+ * (it will never unblock any signals). */
+int sigprocmask(int how, const sigset_t *set, sigset_t *oset)
+{
+	sigset_t oldmask;
+	
+	if (set) {
+		switch (how) {
+		case SIG_BLOCK:
+			oldmask = sigblock(*set);
+			break;
+		case SIG_SETMASK:
+			oldmask = sigsetmask(*set);
+			break;
+		case SIG_UNBLOCK:
+			oldmask = sigblock(0);
+			sigsetmask(oldmask & ~*set);
+			break;
+		default:
+			errno = EINVAL;
+			return -1;
+		}
+	} else if (oset) {
+		oldmask = sigblock(0);
+	}
+	
+	if (oset)
+		*oset = oldmask;
+	
+	return 0;
+}
+#endif
