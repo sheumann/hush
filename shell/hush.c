@@ -8278,7 +8278,7 @@ static void install_special_sighandlers(void)
 	}
 	/* Careful, do not re-install handlers we already installed */
 	if (G.special_sig_mask != mask) {
-		unsigned diff = mask & ~G.special_sig_mask;
+		unsigned long diff = mask & ~G.special_sig_mask;
 		G.special_sig_mask = mask;
 		install_sighandlers(diff);
 	}
