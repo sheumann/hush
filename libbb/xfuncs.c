@@ -224,7 +224,7 @@ char* FAST_FUNC itoa_to_buf(int n, char *buf, unsigned buflen)
 // It so happens that sizeof(int) * 3 is enough for 32+ bit ints.
 // (sizeof(int) * 3 + 2 is correct for any width, even 8-bit)
 
-static char local_buf[sizeof(int) * 3];
+static char local_buf[sizeof(int) * 3 + 2];
 
 /* Convert unsigned integer to ascii using a static buffer (returned). */
 char* FAST_FUNC utoa(unsigned n)
