@@ -2399,10 +2399,20 @@ static ALWAYS_INLINE void o_free_unsafe(o_string *o)
 	free(o->data);
 }
 
+static const char *command_too_long_msg = "command too long";
+
 static void o_grow_by(o_string *o, int len)
 {
-	if (o->length + len > o->maxlen) {
-		o->maxlen += (2*len > B_CHUNK ? 2*len : B_CHUNK);
+	size_t length_needed = (size_t)o->length + len;
+	if (length_needed > o->maxlen) {
+		size_t new_maxlen = o->maxlen + (2*(size_t)len > B_CHUNK ? 2*(size_t)len : B_CHUNK);
+		if (new_maxlen >= INT_MAX) {
+			if (length_needed < INT_MAX)
+				new_maxlen = INT_MAX - 1;
+			else
+				bb_perror_msg_and_die(command_too_long_msg);
+		}
+		o->maxlen = new_maxlen;
 		o->data = xrealloc(o->data, 1 + o->maxlen);
 	}
 }
@@ -2426,7 +2436,10 @@ static void o_addblock(o_string *o, const char *str, int len)
 
 static void o_addstr(o_string *o, const char *str)
 {
-	o_addblock(o, str, strlen(str));
+	size_t len = strlen(str);
+	if (len > INT_MAX)
+		bb_perror_msg_and_die(command_too_long_msg);
+	o_addblock(o, str, len);
 }
 
 #if !BB_MMU
@@ -2441,7 +2454,10 @@ static void nommu_addchr(o_string *o, int ch)
 
 static void o_addstr_with_NUL(o_string *o, const char *str)
 {
-	o_addblock(o, str, strlen(str) + 1);
+	size_t len = strlen(str) + 1;
+	if (len > INT_MAX)
+		bb_perror_msg_and_die(command_too_long_msg);
+	o_addblock(o, str, len);
 }
 
 /*
