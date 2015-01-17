@@ -9805,6 +9805,11 @@ static int FAST_FUNC builtin_wait(char **argv)
 			 * signals which we use. Thus, this ugly dance:
 			 */
 
+			checkjobs(NULL); /* waitpid(WNOHANG) inside */
+			if (errno == ECHILD) {
+				break;
+			}
+			
 			/* Make sure possible SIGCHLD is stored in kernel's
 			 * pending signal mask before we call waitpid.
 			 * Or else we may race with SIGCHLD, lose it,
@@ -9829,12 +9834,6 @@ static int FAST_FUNC builtin_wait(char **argv)
 				}
 			} while (sig < NSIG);
 #endif
-
-			checkjobs(NULL); /* waitpid(WNOHANG) inside */
-			if (errno == ECHILD) {
-				sigprocmask(SIG_SETMASK, &oldset, NULL);
-				break;
-			}
 
 			/* Wait for SIGCHLD or any other signal */
 			//sig = sigwaitinfo(&allsigs, NULL);
