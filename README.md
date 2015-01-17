@@ -54,7 +54,11 @@ GNO-specific notes and known issues
   with Unix shell scripts that expect these to be stdin, stdout, and stderr.
 
 * Glob expansion doesn't work with patterns containing : directory separators.
-  Use / separators instead.
+  Use / separators instead.  Also, note that pattern matching is
+  case-sensitive even though the filesystem is not.
+
+* Shell variable names are case-insensitive on GNO.  This matches GNO's
+  handling of environment variables.
 
 * In TMTerm, command-line editing operations can produce messed-up formatting.
 
