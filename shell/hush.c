@@ -879,6 +879,13 @@ static struct globals G;
 } while (0)
 #endif
 
+/* Flags set in hush_main */
+enum {
+	OPT_login = (1 << 0),
+	OPT_decode = (1 << 1)
+};
+static unsigned flags;
+
 /* Used by lineedit. */
 struct lineedit_statics;
 struct lineedit_statics *lineedit_ptr_to_statics;
@@ -8269,6 +8276,13 @@ static void install_sighandlers(unsigned long mask)
 		 */
 		if (sig == SIGCHLD)
 			continue;
+		/* Some versions of login start the login shell with SIGTSTP
+		 * ignored. If we mark it as ignored on entry, this will be 
+		 * propagated to hush's children and cause ^Z not to work, so 
+		 * don't do that.
+		 */
+		if (sig == SIGTSTP && (flags & OPT_login))
+			continue;
 		if (old_handler == SIG_IGN) {
 			/* oops... restore back to IGN, and record this fact */
 			install_sighandler(sig, old_handler);
@@ -8431,11 +8445,6 @@ static const char* const user_rcs[] = {
 int hush_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
 int hush_main(int argc, char **argv)
 {
-	enum {
-		OPT_login = (1 << 0),
-		OPT_decode = (1 << 1)
-	};
-	unsigned flags;
 	int opt;
 	unsigned builtin_argc;
 	char **e;
@@ -8735,6 +8744,14 @@ int hush_main(int argc, char **argv)
 		G.root_ppid = getppid();
 	}
 
+#ifdef __GNO__
+	if (flags & OPT_login) {
+		/* If we're the login shell, set ourselves up to process
+		 * system() and ORCA shell-style Execute calls. */
+		setsystemvector(systemvec);
+	}
+#endif
+
 	if (G.root_pid == getpid()) {
 		source_startup_file(global_env);
 		source_user_startup_files(user_envs);
@@ -8742,11 +8759,6 @@ int hush_main(int argc, char **argv)
 
 	/* If we are login shell... */
 	if (flags & OPT_login) {
-#ifdef __GNO__
-		/* If we're the login shell, set ourselves up to process
-		 * system() and ORCA shell-style Execute calls. */
-		setsystemvector(systemvec);
-#endif
 		debug_printf(("sourcing /etc/profile\n"));
 		source_startup_file(global_profile);
 		/* bash: after sourcing /etc/profile,
