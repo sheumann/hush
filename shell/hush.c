@@ -8149,7 +8149,7 @@ struct do_system_args {
 	char *command;
 	//sig_t orig_sigint;
 	//sig_t orig_sigquit;
-	long orig_sigmask;
+	//long orig_sigmask;
 };
 
 static void do_system(void *args_ptr)
@@ -8161,7 +8161,7 @@ static void do_system(void *args_ptr)
 	
 	//signal(SIGINT, args->orig_sigint);
 	//signal(SIGQUIT, args->orig_sigquit);
-	sigsetmask(args->orig_sigmask);
+	//sigsetmask(args->orig_sigmask);
 	
 	argv[0] = hush_exec_path;
 	argv[1] = "-E";
@@ -8211,11 +8211,12 @@ static int systemvec(const char *command)
 		return -1;
 
 	/* Signal handling as per POSIX.1-2008 spec for system(). */
-	/* Partially disabled because it's contrary to traditional 
-	 * GNO practice in gsh's implementation of system(). */
+	/* Disabled because it's contrary to traditional 
+	 * GNO practice in gsh's implementation of system(). 
+	 * Also, blocking SIGCHLD would cause wait() to hang. */
 	//args.orig_sigint = signal(SIGINT, SIG_IGN);
 	//args.orig_sigquit = signal(SIGQUIT, SIG_IGN);
-	args.orig_sigmask = sigblock(SIGCHLD);
+	//args.orig_sigmask = sigblock(sigmask(SIGCHLD));
 
 	args.command = command;
 
@@ -8253,7 +8254,7 @@ static int systemvec(const char *command)
  ret:
  	//signal(SIGINT, args.orig_sigint);
  	//signal(SIGQUIT, args.orig_sigquit);
- 	sigsetmask(args.orig_sigmask);
+ 	//sigsetmask(args.orig_sigmask);
  	return retval;
 }
 # define wait wait_wrapper
