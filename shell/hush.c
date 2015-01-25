@@ -1428,6 +1428,27 @@ void _exit_wrapper(int status) {
 
 	if (getpid() == G.last_execed_pid) {
 		// We're the root shell or one that's been exec'd...
+# if ENABLE_HUSH_JOB
+		struct pipe *job;
+		/* Send SIGHUP followed by SIGCONT to kill pgrps of jobs with 
+		 * stopped commands (unless they intentionally ignore SIGHUP).
+		 * 
+		 * This behavior roughly approximates the POSIX spec for sending
+		 * signals when a process exits, although it doesn't match it
+		 * exactly (it may miss stopped descendants that aren't direct
+		 * children).  It's different from gsh, which sends SIGKILL to 
+		 * all jobs, whether running or stopped (but not whole pgrps).
+		 */
+		for (job = G.job_list; job; job = job->next) {
+			if (job->pgrp <= 0 || job->alive_cmds == 0)
+				continue;
+			if (job->stopped_cmds == 0)
+				continue;
+			debug_printf_exec(("HUPing pgrp %d\n", job->pgrp));
+			if (kill(- job->pgrp, SIGHUP) == 0)
+				kill(- job->pgrp, SIGCONT);
+		}
+# endif	
 		// Call regular _exit()
 		if (stackcheck)
 			fprintf(stderr, "hush stack usage (pid %i): %i bytes\n", getpid(), _endStackCheck());
