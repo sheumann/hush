@@ -7,6 +7,7 @@
  *
  * Copyright (C) 2000,2001  Larry Doolittle <larry@doolittle.boa.org>
  * Copyright (C) 2008,2009  Denys Vlasenko <vda.linux@googlemail.com>
+ * Copyright (C) 2014,2015  Stephen Heumann (GNO port)
  *
  * Licensed under GPLv2 or later, see file LICENSE in this source tree.
  *
@@ -1394,15 +1395,19 @@ int is_forked_child(void) {
 
 /* Signal to the parent that it can resume executing after a fork,
  * because the child is about to exec or terminate.
+ *
+ * This currently doesn't do anything, but it could be used in 
+ * alternative versions of the vfork implementation on GNO. 
  */
 void signal_parent_to_resume(void) {
 #ifdef __GNO__
-	if (getpid() != G.last_execed_pid) {
-		/* If procsend wasn't broken, we could send a "ping" to the parent */
-		//procsend(getppid(), 0);
-	}
+// 	if (getpid() != G.last_execed_pid) {
+// 		/* If procsend wasn't broken, we could send a "ping" to the parent */
+// 		//procsend(getppid(), 0);
+// 	}
 #endif
 }
+#define signal_parent_to_resume() /* skip calls, since it doesn't do anything */
 
 
 #ifdef __GNO__
