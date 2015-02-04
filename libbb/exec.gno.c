@@ -181,7 +181,6 @@ int execve(const char *path, char *const *argv, char *const *envp)
 	fileInfoRec.pCount = 4;
 	fileInfoRec.pathname = path_gs;
 	GetFileInfoGS(&fileInfoRec);
-	/* If it's not an EXEC file, error out. */
 	if (toolerror()) {
 		errno = ENOENT;
 		goto error_ret;
@@ -200,7 +199,7 @@ int execve(const char *path, char *const *argv, char *const *envp)
 	args = NULL;
 	
 	/* If _execve kernel call failed, consider trying to execute 
-	 * the file as a script. */
+	 * the file as a script. If it's not an EXEC file, error out. */
 	if (fileInfoRec.fileType != 0xB0 || fileInfoRec.auxType != 0x0006) {
 		errno = EACCES;
 		goto error_ret;
@@ -295,26 +294,32 @@ int execvp(const char *file, char *const *argv)
 	int result;
 	char *path, *path2;
 	
-	path = buildPath(file);
-	if (path == NULL) {
-		errno = ENOENT;
-		return -1;
-	}
+	if (!strpbrk(file, "/:")) {
+		path = buildPath(file);
+		if (path == NULL) {
+			errno = ENOENT;
+			return -1;
+		}
 	
-	/* Move path to memory that will be freed following _execve */
-	path2 = alloc_for_current_process(strlen(path) + 1);
-	if (path2 == NULL) {
+		/* Move path to memory that will be freed following _execve */
+		path2 = alloc_for_current_process(strlen(path) + 1);
+		if (path2 == NULL) {
+			free(path);
+			errno = ENOMEM;
+			return -1;
+		}
+		strcpy(path2, path);
 		free(path);
-		errno = ENOMEM;
-		return -1;
+	} else {
+		path2 = (char *)file;
 	}
-	strcpy(path2, path);
-	free(path);
 	
 	result = execve(path2, argv, environ);
 	
 	/* error case */
-	dealloc_for_current_process(path2);
+	if (path2 != file) {
+		dealloc_for_current_process(path2);
+	}
 	return result;
 }
 #endif
