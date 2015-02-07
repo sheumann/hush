@@ -112,6 +112,7 @@
 
 #ifdef __GNO__
 # include <gsos.h>
+# include <orca.h>
 # define setpgid setpgid_is_broken_on_gno_206
 /* setpgid is broken in GNO 2.0.6: It doesn't actually change the pgrp for 
  * the process (but it does update the pgrp reference counts, effectively
@@ -998,6 +999,9 @@ static const struct built_in_command bltins1[] = {
 #if HUSH_DEBUG
 	BLTIN("memleak"  , builtin_memleak , NULL),
 #endif
+#ifdef __GNO__
+	BLTIN("prefix"   , builtin_prefix  , "Display or set GS/OS prefixes"),
+#endif
 	BLTIN("read"     , builtin_read    , "Input into variable"),
 #if ENABLE_HUSH_FUNCTIONS
 	BLTIN("return"   , builtin_return  , "Return from a function"),
@@ -1016,9 +1020,6 @@ static const struct built_in_command bltins1[] = {
 	BLTIN("umask"    , builtin_umask   , "Set file creation mask"),
 	BLTIN("unset"    , builtin_unset   , "Unset variables"),
 	BLTIN("wait"     , builtin_wait    , "Wait for process"),
-#ifdef __GNO__
-	BLTIN("prefix"   , builtin_prefix  , "Set GS/OS prefixes"),
-#endif
 };
 /* For now, echo and test are unconditionally enabled.
  * Maybe make it configurable? */
@@ -10009,33 +10010,85 @@ static int FAST_FUNC builtin_return(char **argv)
 #ifdef __GNO__
 static int FAST_FUNC builtin_prefix(char **argv)
 {
-	unsigned prefix;
-	PrefixRecGS prefixrec;
+	int prefix = -2, maxprefix = 31;	/* -2 means * prefix */
+	PrefixRecGS prefixrec = {2};
+	int argc = 0;
 	
-	if (!argv[1] || !argv[2] || argv[3]) {
+	while (argv[argc])
+		argc++;
+	
+	if (argc > 3) {
 		bb_error_msg("%s: invalid arguments", argv[0]);
 		return EXIT_FAILURE;
+	};
+	
+	if (argc >= 2) {
+		errno = 0;
+		if (strcmp(argv[1], "@") == 0) {
+			prefix = maxprefix = -1;
+		} else if (argc == 2 && strcmp(argv[1], "*") == 0) {
+			prefix = maxprefix = -2;
+		} else {
+			prefix = maxprefix = bb_strtoi(argv[1], NULL, 10);
+			if (errno || prefix > 31 || prefix < 0) {
+				bb_error_msg("%s: invalid prefix number '%s'", argv[0], argv[1]);
+				return EXIT_FAILURE;
+			}
+		}
 	}
 	
-	errno = 0;
-	prefix = bb_strtou(argv[1], NULL, 10);
-	if (errno || prefix > 31) {
-		bb_error_msg("%s: invalid prefix number '%s'", argv[0], argv[1]);
-		return EXIT_FAILURE;
+	if (argc == 3) {
+		/* set a prefix */
+		prefixrec.prefixNum = prefix;
+		prefixrec.buffer.setPrefix = __C2GSMALLOC(argv[2]);
+		if (prefixrec.buffer.setPrefix == NULL) {
+			bb_error_msg("%s: memory allocation failure", argv[0]);
+			return EXIT_FAILURE;
+		}
+	
+		SetPrefix(&prefixrec);
+	
+		GIfree(prefixrec.buffer.setPrefix);
+		return EXIT_SUCCESS;
 	}
 	
-	prefixrec.pCount = 2;
-	prefixrec.prefixNum = prefix;
-	prefixrec.buffer.setPrefix = __C2GSMALLOC(argv[2]);
-	if (prefixrec.buffer.setPrefix == NULL) {
+	/* get one or more prefixes */
+	prefixrec.buffer.getPrefix = GOinit(8192, NULL);
+	if (prefixrec.buffer.getPrefix == NULL) {
 		bb_error_msg("%s: memory allocation failure", argv[0]);
 		return EXIT_FAILURE;
 	}
 	
-	SetPrefix(&prefixrec);
+	for (; prefix <= maxprefix; prefix++) {
+		if (prefix != -2) {
+			prefixrec.prefixNum = prefix;
+			GetPrefix(&prefixrec);
+		} else {
+			/* Abuse prefixrec as a parameter rec for GetBootVol */
+			prefixrec.prefixNum = 1; /* pCount */
+			GetBootVol(&prefixrec.prefixNum);
+		}
+		if (toolerror()) continue;
+		prefixrec.buffer.getPrefix->
+				bufString.text[prefixrec.buffer.getPrefix->bufString.length] = 0;
+		if (prefixrec.buffer.getPrefix->bufString.length > 0 || argc == 2) {
+			if (argc == 1) {
+				switch(prefix) {
+				case -2:
+					printf(" *: ");
+					break;
+				case -1:
+					printf(" @: ");
+					break;
+				default:
+					printf("%2i: ", prefix);
+				}
+			}
+			puts(prefixrec.buffer.getPrefix->bufString.text);
+		}
+	}
 	
-	GIfree(prefixrec.buffer.setPrefix);
-	
+	GOfree(prefixrec.buffer.getPrefix);
 	return EXIT_SUCCESS;
 }
 #endif
