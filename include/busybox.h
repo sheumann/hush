@@ -5,7 +5,7 @@
 #ifndef BUSYBOX_H
 #define BUSYBOX_H 1
 
-#define BB_VER "1.23.0 (GNO hush 1.0)"
+#define BB_VER "1.23.1 (GNO hush 1.1)"
 
 #include "libbb.h"
 /* BB_DIR_foo and BB_SUID_bar constants: */
