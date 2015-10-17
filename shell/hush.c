@@ -6235,83 +6235,7 @@ static FILE *generate_stream_from_string(const char *s, pid_t *pid_p)
 #if BB_MMU
 	pid = xfork();
 	if (pid == 0) { /* child */
-<<<<<<< HEAD
 		xforked_child(&args_struct);
-=======
-		disable_restore_tty_pgrp_on_exit();
-		/* Process substitution is not considered to be usual
-		 * 'command execution'.
-		 * SUSv3 says ctrl-Z should be ignored, ctrl-C should not.
-		 */
-		bb_signals(0
-			+ (1 << SIGTSTP)
-			+ (1 << SIGTTIN)
-			+ (1 << SIGTTOU)
-			, SIG_IGN);
-		CLEAR_RANDOM_T(&G.random_gen); /* or else $RANDOM repeats in child */
-		close(channel[0]); /* NB: close _first_, then move fd! */
-		xmove_fd(channel[1], 1);
-		/* Prevent it from trying to handle ctrl-z etc */
-		IF_HUSH_JOB(G.run_list_level = 1;)
-		/* Awful hack for `trap` or $(trap).
-		 *
-		 * http://www.opengroup.org/onlinepubs/009695399/utilities/trap.html
-		 * contains an example where "trap" is executed in a subshell:
-		 *
-		 * save_traps=$(trap)
-		 * ...
-		 * eval "$save_traps"
-		 *
-		 * Standard does not say that "trap" in subshell shall print
-		 * parent shell's traps. It only says that its output
-		 * must have suitable form, but then, in the above example
-		 * (which is not supposed to be normative), it implies that.
-		 *
-		 * bash (and probably other shell) does implement it
-		 * (traps are reset to defaults, but "trap" still shows them),
-		 * but as a result, "trap" logic is hopelessly messed up:
-		 *
-		 * # trap
-		 * trap -- 'echo Ho' SIGWINCH  <--- we have a handler
-		 * # (trap)        <--- trap is in subshell - no output (correct, traps are reset)
-		 * # true | trap   <--- trap is in subshell - no output (ditto)
-		 * # echo `true | trap`    <--- in subshell - output (but traps are reset!)
-		 * trap -- 'echo Ho' SIGWINCH
-		 * # echo `(trap)`         <--- in subshell in subshell - output
-		 * trap -- 'echo Ho' SIGWINCH
-		 * # echo `true | (trap)`  <--- in subshell in subshell in subshell - output!
-		 * trap -- 'echo Ho' SIGWINCH
-		 *
-		 * The rules when to forget and when to not forget traps
-		 * get really complex and nonsensical.
-		 *
-		 * Our solution: ONLY bare $(trap) or `trap` is special.
-		 */
-		s = skip_whitespace(s);
-		if (is_prefixed_with(s, "trap")
-		 && skip_whitespace(s + 4)[0] == '\0'
-		) {
-			static const char *const argv[] = { NULL, NULL };
-			builtin_trap((char**)argv);
-			exit(0); /* not _exit() - we need to fflush */
-		}
-# if BB_MMU
-		reset_traps_to_defaults();
-		parse_and_run_string(s);
-		_exit(G.last_exitcode);
-# else
-	/* We re-execute after vfork on NOMMU. This makes this script safe:
-	 * yes "0123456789012345678901234567890" | dd bs=32 count=64k >BIG
-	 * huge=`cat BIG` # was blocking here forever
-	 * echo OK
-	 */
-		re_execute_shell(&to_free,
-				s,
-				G.global_argv[0],
-				G.global_argv + 1,
-				NULL);
-# endif
->>>>>>> 7ab00a0de9cfeeacff70a74402808d225ba07397
 	}
 #else
 	pid = xvfork_and_run(xforked_child, &args_struct);
@@ -6391,7 +6315,7 @@ static void xforked_child(void *args_struct) {
 	 * Our solution: ONLY bare $(trap) or `trap` is special.
 	 */
 	args->s = skip_whitespace(args->s);
-	if (strncmp(args->s, "trap", 4) == 0
+	if (is_prefixed_with(args->s, "trap")
 	 && skip_whitespace(args->s + 4)[0] == '\0'
 	) {
 		static const char *const argv[] = { NULL, NULL };
