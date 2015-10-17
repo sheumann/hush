@@ -48,7 +48,7 @@ SRCS = \
 	libbb/messages.c \
 	libbb/appletlib.c \
 	libbb/bb.basename.c \
-	libbb/mempcpy.c \
+	libbb/auto.string.c \
 	libbb/vfork.and.run.c \
 	libbb/poll.c \
 	libbb/get.exec.path.c \

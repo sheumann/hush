@@ -35,7 +35,6 @@ LIBBB_B_SRC = \
 	libbb/escape.seq.c \
 	libbb/messages.c \
 	libbb/bb.basename.c \
-	libbb/mempcpy.c \
 	libbb/get.exec.path.c \
 	libbb/exec.gno.c
 
@@ -54,7 +53,8 @@ LIBBB_C_SRC = \
 	libbb/parse.mode.c \
 	libbb/poll.c \
 	libbb/pgrp.c \
-	libbb/qsort.c
+	libbb/qsort.c \
+	libbb/auto.string.c
 
 LIBBB_D_SRC = \
 	libbb/xfuncs.printf.c \
