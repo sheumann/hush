@@ -382,7 +382,7 @@ enum {
 	ACTION_DEPTHFIRST     = (1 << 3),
 	/*ACTION_REVERSE      = (1 << 4), - unused */
 	ACTION_QUIET          = (1 << 5),
-	ACTION_DANGLING_OK    = (1 << 6)
+	ACTION_DANGLING_OK    = (1 << 6),
 };
 typedef uint8_t recurse_flags_t;
 extern int recursive_action(const char *fileName, unsigned flags,
@@ -684,7 +684,7 @@ void fputc_printable(int ch, FILE *file) FAST_FUNC;
  * Buffer must hold at least four characters. */
 enum {
 	VISIBLE_ENDLINE   = 1 << 0,
-	VISIBLE_SHOW_TABS = 1 << 1
+	VISIBLE_SHOW_TABS = 1 << 1,
 };
 void visible(unsigned ch, char *buf, int flags) FAST_FUNC;
 
@@ -974,7 +974,7 @@ enum {
 	DAEMON_DEVNULL_STDIO = 2,
 	DAEMON_CLOSE_EXTRA_FDS = 4,
 	DAEMON_ONLY_SANITIZE = 8, /* internal use */
-	DAEMON_DOUBLE_FORK = 16 /* double fork to avoid controlling tty */
+	DAEMON_DOUBLE_FORK = 16, /* double fork to avoid controlling tty */
 };
 #if BB_MMU
 # define fork_or_rexec(argv)                xfork()
@@ -1435,7 +1435,7 @@ enum {
 	USERNAME_COMPLETION = 4 * ENABLE_FEATURE_USERNAME_COMPLETION,
 	VI_MODE          = 8 * ENABLE_FEATURE_EDITING_VI,
 	WITH_PATH_LOOKUP = 0x10,
-	FOR_SHELL        = DO_HISTORY | TAB_COMPLETION | USERNAME_COMPLETION
+	FOR_SHELL        = DO_HISTORY | TAB_COMPLETION | USERNAME_COMPLETION,
 };
 line_input_t *new_line_input_t(int flags) FAST_FUNC;
 /* So far static: void free_line_input_t(line_input_t *n) FAST_FUNC; */

@@ -48,7 +48,7 @@ next_random(random_t *rnd)
         enum {
                 a = 2,
                 b = 7,
-                c = 3
+                c = 3,
         };
 
 	uint32_t t;

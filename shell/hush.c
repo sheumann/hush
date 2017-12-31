@@ -466,7 +466,7 @@ enum {
 	EXP_FLAG_GLOB           = 0x2,
 	/* Protect newly added chars against globbing
 	 * by prepending \ to *, ?, [, \ */
-	EXP_FLAG_ESC_GLOB_CHARS = 0x1
+	EXP_FLAG_ESC_GLOB_CHARS = 0x1,
 };
 enum {
 	MAYBE_ASSIGNMENT      = 0,
@@ -546,7 +546,7 @@ typedef enum redir_type {
 	/* otherwise, rd_fd is redirected to rd_dup */
 
 	HEREDOC_SKIPTABS = 1,
-	HEREDOC_QUOTED   = 2
+	HEREDOC_QUOTED   = 2,
 } redir_type;
 
 
@@ -619,7 +619,7 @@ typedef enum pipe_style {
 	PIPE_SEQ = 1,
 	PIPE_AND = 2,
 	PIPE_OR  = 3,
-	PIPE_BG  = 4
+	PIPE_BG  = 4,
 } pipe_style;
 /* Is there anything in this pipe at all? */
 #define IS_NULL_PIPE(pi) \
@@ -678,7 +678,7 @@ struct variable {
 
 enum {
 	BC_BREAK = 1,
-	BC_CONTINUE = 2
+	BC_CONTINUE = 2,
 };
 
 #if ENABLE_HUSH_FUNCTIONS
@@ -7937,7 +7937,7 @@ static int run_list(struct pipe *pi)
 			}
 		}
 		last_followup = pi->followup;
-		IF_HAS_KEYWORDS(last_rword = rword); /* ; outside to avoid ORCA/C bug */
+		IF_HAS_KEYWORDS(last_rword = rword;)
 #if ENABLE_HUSH_IF
 		if (cond_code) {
 			if (rword == RES_THEN) {

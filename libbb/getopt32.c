@@ -312,7 +312,7 @@ const char *opt_complementary;
 enum {
 	PARAM_STRING,
 	PARAM_LIST,
-	PARAM_INT
+	PARAM_INT,
 };
 
 typedef struct {

@@ -845,7 +845,7 @@ static NOINLINE unsigned complete_username(const char *ud)
 enum {
 	FIND_EXE_ONLY = 0,
 	FIND_DIR_ONLY = 1,
-	FIND_FILE_ONLY = 2
+	FIND_FILE_ONLY = 2,
 };
 
 #ifndef __GNO__

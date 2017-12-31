@@ -37,7 +37,7 @@ that expect a Bourne-type shell in that location).
 
 Building
 --------
-To build it, you also need ORCA/C 2.1.x and plenty of memory (8MB is enough).
+To build it, you also need ORCA/C 2.2.x and plenty of memory (8MB is enough).
 You also need to have a copy of the ltermcap library from GNO 2.0.4 installed
 as `/usr/lib/libtermcap.204` (the GNO 2.0.6 version is broken and won't work).
 Run `make` or (if the source files don't have correct filetypes) `make build`.
