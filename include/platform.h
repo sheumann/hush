@@ -527,7 +527,7 @@ extern char *stpcpy(char *p, const char *to_add) FAST_FUNC;
 #define mempcpy bb__mempcpy
 static ALWAYS_INLINE void *mempcpy(void *dest, const void *src, size_t len)
 {
-	return memcpy(dest, src, len) + len;
+	return (char *)memcpy(dest, src, len) + len;
 }
 #endif
 
