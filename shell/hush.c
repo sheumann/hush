@@ -741,6 +741,13 @@ enum {
 };
 
 
+/* Can be extended to handle a FIXME in setup_redirects about not saving script fds */
+struct FILE_list {
+	struct FILE_list *next;
+	FILE *fp;
+};
+
+
 /* "Globals" within this file */
 /* Sorted roughly by size (smaller offsets == smaller code) */
 struct globals {
@@ -839,6 +846,9 @@ struct globals {
 	unsigned count_SIGCHLD;
 	unsigned handled_SIGCHLD;
 	smallint we_have_children;
+#endif
+#if ENABLE_FEATURE_SH_STANDALONE
+	struct FILE_list *FILE_list;
 #endif
 	/* Which signals have non-DFL handler (even with no traps set)?
 	 * Set at the start to:
@@ -1337,6 +1347,54 @@ static void free_strings(char **strings)
 	}
 	free(strings);
 }
+
+
+/* Manipulating the list of open FILEs */
+static FILE *remember_FILE(FILE *fp)
+{
+	if (fp) {
+#if ENABLE_FEATURE_SH_STANDALONE
+		struct FILE_list *n = xmalloc(sizeof(*n));
+		n->fp = fp;
+		n->next = G.FILE_list;
+		G.FILE_list = n;
+#endif
+		close_on_exec_on(fileno(fp));
+	}
+	return fp;
+}
+#if ENABLE_FEATURE_SH_STANDALONE
+static void close_all_FILE_list(void)
+{
+	struct FILE_list *fl = G.FILE_list;
+	while (fl) {
+		/* fclose would also free FILE object.
+		 * It is disastrous if we share memory with a vforked parent.
+		 * I'm not sure we never come here after vfork.
+		 * Therefore just close fd, nothing more.
+		 */
+		/*fclose(fl->fp); - unsafe */
+		close(fileno(fl->fp));
+		fl = fl->next;
+	}
+}
+static void fclose_and_forget(FILE *fp)
+{
+	struct FILE_list **pp = &G.FILE_list;
+	while (*pp) {
+		struct FILE_list *cur = *pp;
+		if (cur->fp == fp) {
+			*pp = cur->next;
+			free(cur);
+			break;
+		}
+		pp = &cur->next;
+	}
+	fclose(fp);
+}
+#else
+# define fclose_and_forget(fp) fclose(fp);
+#endif
 
 
 /* Helpers for setting new $n and restoring them back
@@ -6276,8 +6334,7 @@ static FILE *generate_stream_from_string(const char *s, pid_t *pid_p)
 	free(to_free);
 # endif
 	close(channel[1]);
-	close_on_exec_on(channel[0]);
-	return xfdopen_for_read(channel[0]);
+	return remember_FILE(xfdopen_for_read(channel[0]));
 }
 
 #ifdef __ORCAC__
@@ -6392,7 +6449,7 @@ static int process_command_subs(o_string *dest, const char *s)
 	}
 
 	debug_printf(("done reading from `cmd` pipe, closing it\n"));
-	fclose(fp);
+	fclose_and_forget(fp);
 	/* We need to extract exitcode. Test case
 	 * "true; echo `sleep 1; false` $?"
 	 * should print 1 */
@@ -7026,6 +7083,8 @@ static NOINLINE void pseudo_exec_argv(nommu_save_t *nommu_save,
 		if (a >= 0) {
 # if BB_MMU /* see above why on NOMMU it is not allowed */
 			if (APPLET_IS_NOEXEC(a)) {
+				/* Do not leak open fds from opened script files etc */
+				close_all_FILE_list();
 				debug_printf_exec(("running applet '%s'\n", argv[0]));
 				run_applet_no_and_exit(a, argv);
 			}
@@ -8486,10 +8545,10 @@ static bool source_startup_file(const char *path)
 {
 	FILE *input = fopen_for_read(path);
 	if (input != NULL) {
-		close_on_exec_on(fileno(input));
+		remember_FILE(input);
 		install_special_sighandlers();
 		parse_and_run_file(input);
-		fclose(input);
+		fclose_and_forget(input);
 		return 1;
 	}
 	return 0;
@@ -8875,11 +8934,11 @@ int hush_main(int argc, char **argv)
 		G.global_argv++;
 		debug_printf(("running script '%s'\n", G.global_argv[0]));
 		input = xfopen_for_read(G.global_argv[0]);
-		close_on_exec_on(fileno(input));
+		remember_FILE(input);
 		install_special_sighandlers();
 		parse_and_run_file(input);
 #if ENABLE_FEATURE_CLEAN_UP
-		fclose(input);
+		fclose_and_forget(input);
 #endif
 		goto final_return;
 	}
@@ -9792,7 +9851,7 @@ static int FAST_FUNC builtin_source(char **argv)
 		if (arg_path)
 			filename = arg_path;
 	}
-	input = fopen_or_warn(filename, "r");
+	input = remember_FILE(fopen_or_warn(filename, "r"));
 	free(arg_path);
 	if (!input) {
 		/* bb_perror_msg("%s", *argv); - done by fopen_or_warn */
@@ -9801,7 +9860,6 @@ static int FAST_FUNC builtin_source(char **argv)
 		 */
 		return EXIT_FAILURE;
 	}
-	close_on_exec_on(fileno(input));
 
 #if ENABLE_HUSH_FUNCTIONS
 	sv_flg = G.flag_return_in_progress;
@@ -9812,7 +9870,7 @@ static int FAST_FUNC builtin_source(char **argv)
 		save_and_replace_G_args(&sv, argv);
 
 	parse_and_run_file(input);
-	fclose(input);
+	fclose_and_forget(input);
 
 	if (argv[1])
 		restore_G_args(&sv, argv);
