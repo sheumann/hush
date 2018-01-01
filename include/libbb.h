@@ -18,6 +18,7 @@
 #include <fcntl.h>
 #include <setjmp.h>
 #include <signal.h>
+#include <paths.h>
 #if defined __UCLIBC__ /* TODO: and glibc? */
 /* use inlined versions of these: */
 # define sigfillset(s)    __sigfillset(s)
@@ -126,7 +127,11 @@
 #  define updwtmpx updwtmp
 #  define _PATH_UTMPX _PATH_UTMP
 # else
+#  include <utmp.h>
 #  include <utmpx.h>
+#  if defined _PATH_UTMP && !defined _PATH_UTMPX
+#   define _PATH_UTMPX _PATH_UTMP
+#  endif
 # endif
 #endif
 #if ENABLE_LOCALE_SUPPORT
@@ -157,14 +162,18 @@
 # include <netinet/in.h>
 #else
 # include <arpa/inet.h>
-# if !defined(__socklen_t_defined) && !defined(_SOCKLEN_T_DECLARED)
-/* We #define socklen_t *after* includes, otherwise we get
- * typedef redefinition errors from system headers
- * (in case "is it defined already" detection above failed)
- */
-#  define socklen_t bb_socklen_t
-   typedef unsigned socklen_t;
-# endif
+//This breaks on bionic:
+//# if !defined(__socklen_t_defined) && !defined(_SOCKLEN_T_DECLARED)
+///* We #define socklen_t *after* includes, otherwise we get
+// * typedef redefinition errors from system headers
+// * (in case "is it defined already" detection above failed)
+// */
+//#  define socklen_t bb_socklen_t
+//   typedef unsigned socklen_t;
+//# endif
+//if this is still needed, add a fix along the lines of
+//  ifdef SPECIFIC_BROKEN_LIBC_CHECK / typedef socklen_t / endif
+//in platform.h instead!
 #endif
 #ifndef HAVE_CLEARENV
 # define clearenv() do { if (environ) environ[0] = NULL; } while (0)
@@ -351,23 +360,6 @@ extern char *strrstr(const char *haystack, const char *needle) FAST_FUNC;
 //TODO: supply a pointer to char[11] buffer (avoid statics)?
 extern const char *bb_mode_string(mode_t mode) FAST_FUNC;
 extern int is_directory(const char *name, int followLinks) FAST_FUNC;
-enum {	/* DO NOT CHANGE THESE VALUES!  cp.c, mv.c, install.c depend on them. */
-	FILEUTILS_PRESERVE_STATUS = 1 << 0, /* -p */
-	FILEUTILS_DEREFERENCE     = 1 << 1, /* !-d */
-	FILEUTILS_RECUR           = 1 << 2, /* -R */
-	FILEUTILS_FORCE           = 1 << 3, /* -f */
-	FILEUTILS_INTERACTIVE     = 1 << 4, /* -i */
-	FILEUTILS_MAKE_HARDLINK   = 1 << 5, /* -l */
-	FILEUTILS_MAKE_SOFTLINK   = 1 << 6, /* -s */
-	FILEUTILS_DEREF_SOFTLINK  = 1 << 7, /* -L */
-	FILEUTILS_DEREFERENCE_L0  = 1 << 8, /* -H */
-#if ENABLE_SELINUX
-	FILEUTILS_PRESERVE_SECURITY_CONTEXT = 1 << 9, /* -c */
-	FILEUTILS_SET_SECURITY_CONTEXT = 1 << 10,
-#endif
-	FILEUTILS_IGNORE_CHMOD_ERR = 1 << 11
-};
-#define FILEUTILS_CP_OPTSTR "pdRfilsLH" IF_SELINUX("c")
 extern int remove_file(const char *path, int flags) FAST_FUNC;
 /* NB: without FILEUTILS_RECUR in flags, it will basically "cat"
  * the source, not copy (unless "source" is a directory).
@@ -482,6 +474,7 @@ void xsetuid(uid_t uid) FAST_FUNC;
 void xsetegid(gid_t egid) FAST_FUNC;
 void xseteuid(uid_t euid) FAST_FUNC;
 void xchdir(const char *path) FAST_FUNC;
+void xfchdir(int fd) FAST_FUNC;
 void xchroot(const char *path) FAST_FUNC;
 void xsetenv(const char *key, const char *value) FAST_FUNC;
 void bb_unsetenv(const char *key) FAST_FUNC;
@@ -528,116 +521,6 @@ void parse_datestr(const char *date_str, struct tm *ptm) FAST_FUNC;
 time_t validate_tm_time(const char *date_str, struct tm *ptm) FAST_FUNC;
 char *strftime_HHMMSS(char *buf, unsigned len, time_t *tp) FAST_FUNC;
 char *strftime_YYYYMMDDHHMMSS(char *buf, unsigned len, time_t *tp) FAST_FUNC;
-
-int xsocket(int domain, int type, int protocol) FAST_FUNC;
-void xbind(int sockfd, struct sockaddr *my_addr, socklen_t addrlen) FAST_FUNC;
-void xlisten(int s, int backlog) FAST_FUNC;
-void xconnect(int s, const struct sockaddr *s_addr, socklen_t addrlen) FAST_FUNC;
-ssize_t xsendto(int s, const void *buf, size_t len, const struct sockaddr *to,
-				socklen_t tolen) FAST_FUNC;
-
-int setsockopt_int(int fd, int level, int optname, int optval) FAST_FUNC;
-int setsockopt_1(int fd, int level, int optname) FAST_FUNC;
-int setsockopt_SOL_SOCKET_int(int fd, int optname, int optval) FAST_FUNC;
-int setsockopt_SOL_SOCKET_1(int fd, int optname) FAST_FUNC;
-/* SO_REUSEADDR allows a server to rebind to an address that is already
- * "in use" by old connections to e.g. previous server instance which is
- * killed or crashed. Without it bind will fail until all such connections
- * time out. Linux does not allow multiple live binds on same ip:port
- * regardless of SO_REUSEADDR (unlike some other flavors of Unix).
- * Turn it on before you call bind(). */
-void setsockopt_reuseaddr(int fd) FAST_FUNC; /* On Linux this never fails. */
-int setsockopt_keepalive(int fd) FAST_FUNC;
-int setsockopt_broadcast(int fd) FAST_FUNC;
-int setsockopt_bindtodevice(int fd, const char *iface) FAST_FUNC;
-/* NB: returns port in host byte order */
-unsigned bb_lookup_port(const char *port, const char *protocol, unsigned default_port) FAST_FUNC;
-typedef struct len_and_sockaddr {
-	socklen_t len;
-	union {
-		struct sockaddr sa;
-#if ENABLE_FEATURE_IPV6
-		struct sockaddr_in6 sin6;
-#endif
-	} u;
-} len_and_sockaddr;
-
-/* Create stream socket, and allocate suitable lsa.
- * (lsa of correct size and lsa->sa.sa_family (AF_INET/AF_INET6))
- * af == AF_UNSPEC will result in trying to create IPv6 socket,
- * and if kernel doesn't support it, fall back to IPv4.
- * This is useful if you plan to bind to resulting local lsa.
- */
-int xsocket_type(len_and_sockaddr **lsap, int af, int sock_type) FAST_FUNC;
-int xsocket_stream(len_and_sockaddr **lsap) FAST_FUNC;
-/* Create server socket bound to bindaddr:port. bindaddr can be NULL,
- * numeric IP ("N.N.N.N") or numeric IPv6 address,
- * and can have ":PORT" suffix (for IPv6 use "[X:X:...:X]:PORT").
- * Only if there is no suffix, port argument is used */
-/* NB: these set SO_REUSEADDR before bind */
-int create_and_bind_stream_or_die(const char *bindaddr, int port) FAST_FUNC;
-int create_and_bind_dgram_or_die(const char *bindaddr, int port) FAST_FUNC;
-/* Create client TCP socket connected to peer:port. Peer cannot be NULL.
- * Peer can be numeric IP ("N.N.N.N"), numeric IPv6 address or hostname,
- * and can have ":PORT" suffix (for IPv6 use "[X:X:...:X]:PORT").
- * If there is no suffix, port argument is used */
-int create_and_connect_stream_or_die(const char *peer, int port) FAST_FUNC;
-/* Connect to peer identified by lsa */
-int xconnect_stream(const len_and_sockaddr *lsa) FAST_FUNC;
-/* Get local address of bound or accepted socket */
-len_and_sockaddr *get_sock_lsa(int fd) FAST_FUNC RETURNS_MALLOC;
-/* Get remote address of connected or accepted socket */
-len_and_sockaddr *get_peer_lsa(int fd) FAST_FUNC RETURNS_MALLOC;
-/* Return malloc'ed len_and_sockaddr with socket address of host:port
- * Currently will return IPv4 or IPv6 sockaddrs only
- * (depending on host), but in theory nothing prevents e.g.
- * UNIX socket address being returned, IPX sockaddr etc...
- * On error does bb_error_msg and returns NULL */
-len_and_sockaddr* host2sockaddr(const char *host, int port) FAST_FUNC RETURNS_MALLOC;
-/* Version which dies on error */
-len_and_sockaddr* xhost2sockaddr(const char *host, int port) FAST_FUNC RETURNS_MALLOC;
-len_and_sockaddr* xdotted2sockaddr(const char *host, int port) FAST_FUNC RETURNS_MALLOC;
-/* Same, useful if you want to force family (e.g. IPv6) */
-#if !ENABLE_FEATURE_IPV6
-#define host_and_af2sockaddr(host, port, af) host2sockaddr((host), (port))
-#define xhost_and_af2sockaddr(host, port, af) xhost2sockaddr((host), (port))
-#else
-len_and_sockaddr* host_and_af2sockaddr(const char *host, int port, sa_family_t af) FAST_FUNC RETURNS_MALLOC;
-len_and_sockaddr* xhost_and_af2sockaddr(const char *host, int port, sa_family_t af) FAST_FUNC RETURNS_MALLOC;
-#endif
-/* Assign sin[6]_port member if the socket is an AF_INET[6] one,
- * otherwise no-op. Useful for ftp.
- * NB: does NOT do htons() internally, just direct assignment. */
-void set_nport(struct sockaddr *sa, unsigned port) FAST_FUNC;
-/* Retrieve sin[6]_port or return -1 for non-INET[6] lsa's */
-int get_nport(const struct sockaddr *sa) FAST_FUNC;
-/* Reverse DNS. Returns NULL on failure. */
-char* xmalloc_sockaddr2host(const struct sockaddr *sa) FAST_FUNC RETURNS_MALLOC;
-/* This one doesn't append :PORTNUM */
-char* xmalloc_sockaddr2host_noport(const struct sockaddr *sa) FAST_FUNC RETURNS_MALLOC;
-/* This one also doesn't fall back to dotted IP (returns NULL) */
-char* xmalloc_sockaddr2hostonly_noport(const struct sockaddr *sa) FAST_FUNC RETURNS_MALLOC;
-/* inet_[ap]ton on steroids */
-char* xmalloc_sockaddr2dotted(const struct sockaddr *sa) FAST_FUNC RETURNS_MALLOC;
-char* xmalloc_sockaddr2dotted_noport(const struct sockaddr *sa) FAST_FUNC RETURNS_MALLOC;
-// "old" (ipv4 only) API
-// users: traceroute.c hostname.c - use _list_ of all IPs
-struct hostent *xgethostbyname(const char *name) FAST_FUNC;
-// Also mount.c and inetd.c are using gethostbyname(),
-// + inet_common.c has additional IPv4-only stuff
-
-
-void socket_want_pktinfo(int fd) FAST_FUNC;
-ssize_t send_to_from(int fd, void *buf, size_t len, int flags,
-		const struct sockaddr *to,
-		const struct sockaddr *from,
-		socklen_t tolen) FAST_FUNC;
-ssize_t recv_from_to(int fd, void *buf, size_t len, int flags,
-		struct sockaddr *from,
-		struct sockaddr *to,
-		socklen_t sa_size) FAST_FUNC;
-
-uint16_t inet_cksum(uint16_t *addr, int len) FAST_FUNC;
 
 char *xstrdup(const char *s) FAST_FUNC RETURNS_MALLOC;
 char *xstrndup(const char *s, int n) FAST_FUNC RETURNS_MALLOC;
@@ -864,14 +747,13 @@ long xuname2uid(const char *name) FAST_FUNC;
 long xgroup2gid(const char *name) FAST_FUNC;
 /* wrapper: allows string to contain numeric uid or gid */
 unsigned long get_ug_id(const char *s, long FAST_FUNC (*xname2id)(const char *)) FAST_FUNC;
-/* from chpst. Does not die, returns 0 on failure */
 struct bb_uidgid_t {
 	uid_t uid;
 	gid_t gid;
 };
-/* always sets uid and gid */
-int get_uidgid(struct bb_uidgid_t*, const char*, int numeric_ok) FAST_FUNC;
-/* always sets uid and gid, allows numeric; exits on failure */
+/* always sets uid and gid; returns 0 on failure */
+int get_uidgid(struct bb_uidgid_t*, const char*) FAST_FUNC;
+/* always sets uid and gid; exits on failure */
 void xget_uidgid(struct bb_uidgid_t*, const char*) FAST_FUNC;
 /* chown-like handling of "user[:[group]" */
 void parse_chown_usergroup_or_die(struct bb_uidgid_t *u, char *user_group) FAST_FUNC;
@@ -926,6 +808,7 @@ int executable_exists(const char *filename) FAST_FUNC;
 #if BB_MMU
 pid_t xfork(void) FAST_FUNC;
 #endif
+void xvfork_parent_waits_and_exits(void) FAST_FUNC;
 
 /* NOMMU friendy fork+exec: */
 pid_t spawn(char **argv) FAST_FUNC;
@@ -941,6 +824,7 @@ pid_t safe_waitpid(pid_t pid, int *wstat, int options) FAST_FUNC;
  *      if (rc > 0) bb_error_msg("exit code: %d", rc & 0xff);
  */
 int wait4pid(pid_t pid) FAST_FUNC;
+int wait_for_exitstatus(pid_t pid) FAST_FUNC;
 /* Same as wait4pid(spawn(argv)), but with NOFORK/NOEXEC if configured: */
 int spawn_and_wait(char **argv) FAST_FUNC;
 /* Does NOT check that applet is NOFORK, just blindly runs it */
@@ -1055,7 +939,6 @@ extern void bb_herror_msg(const char *s, ...) __attribute__ ((format (printf, 1,
 extern void bb_herror_msg_and_die(const char *s, ...) __attribute__ ((noreturn, format (printf, 1, 2))) FAST_FUNC;
 extern void bb_perror_nomsg_and_die(void) NORETURN FAST_FUNC;
 extern void bb_perror_nomsg(void) FAST_FUNC;
-extern void bb_info_msg(const char *s, ...) __attribute__ ((format (printf, 1, 2))) FAST_FUNC;
 extern void bb_verror_msg(const char *s, va_list p, const char *strerr) FAST_FUNC;
 
 /* We need to export XXX_main from libbusybox
@@ -1129,8 +1012,6 @@ const struct hwtype *get_hwntype(int type) FAST_FUNC;
 
 #ifndef BUILD_INDIVIDUAL
 extern int find_applet_by_name(const char *name) FAST_FUNC;
-/* Returns only if applet is not found. */
-extern void run_applet_and_exit(const char *name, char **argv) FAST_FUNC;
 extern void run_applet_no_and_exit(int a, char **argv) NORETURN FAST_FUNC;
 #endif
 
@@ -1222,11 +1103,6 @@ extern void selinux_preserve_fcontext(int fdesc) FAST_FUNC;
 extern void selinux_or_die(void) FAST_FUNC;
 
 
-/* systemd support */
-#define SD_LISTEN_FDS_START 3
-int sd_listen_fds(void);
-
-
 /* setup_environment:
  * if chdir pw->pw_dir: ok: else if to_tmp == 1: goto /tmp else: goto / or die
  * if clear_env = 1: cd(pw->pw_dir), clear environment, then set
@@ -1293,6 +1169,7 @@ extern void print_login_prompt(void) FAST_FUNC;
 char *xmalloc_ttyname(int fd) FAST_FUNC RETURNS_MALLOC;
 /* NB: typically you want to pass fd 0, not 1. Think 'applet | grep something' */
 int get_terminal_width_height(int fd, unsigned *width, unsigned *height) FAST_FUNC;
+int get_terminal_width(int fd) FAST_FUNC;
 
 #ifndef __GNO__
 int tcsetattr_stdin_TCSANOW(const struct termios *tp) FAST_FUNC;
@@ -1540,6 +1417,9 @@ void bb_progress_update(bb_progress_t *p,
 			uoff_t transferred,
 			uoff_t totalsize) FAST_FUNC;
 
+unsigned ubi_devnum_from_devname(const char *str) FAST_FUNC;
+int ubi_get_volid_by_name(unsigned ubi_devnum, const char *vol_name) FAST_FUNC;
+
 
 /* Some older linkers don't perform string merging, we used to have common strings
  * as global arrays to do it by hand. But:
@@ -1561,7 +1441,7 @@ extern const char bb_msg_can_not_create_raw_socket[] ALIGN1;
 extern const char bb_msg_perm_denied_are_you_root[] ALIGN1;
 extern const char bb_msg_you_must_be_root[] ALIGN1;
 extern const char bb_msg_requires_arg[] ALIGN1;
-extern const char bb_msg_invalid_arg[] ALIGN1;
+extern const char bb_msg_invalid_arg_to[] ALIGN1;
 extern const char bb_msg_standard_input[] ALIGN1;
 extern const char bb_msg_standard_output[] ALIGN1;
 
@@ -1583,6 +1463,13 @@ extern const int const_int_0;
 /* Providing hard guarantee on minimum size (think of BUFSIZ == 128) */
 enum { COMMON_BUFSIZE = (BUFSIZ >= 256*sizeof(void*) ? BUFSIZ+1 : 256*sizeof(void*)) };
 extern char bb_common_bufsiz1[COMMON_BUFSIZE];
+/* This struct is deliberately not defined. */
+/* See docs/keep_data_small.txt */
+struct globals;
+/* '*const' ptr makes gcc optimize code much better.
+ * Magic prevents ptr_to_globals from going into rodata.
+ * If you want to assign a value, use SET_PTR_TO_GLOBALS(x) */
+extern struct globals *const ptr_to_globals;
 /* At least gcc 3.4.6 on mipsel system needs optimization barrier */
 #ifndef __ORCAC__
 # define barrier() __asm__ __volatile__("":::"memory")
@@ -1600,6 +1487,7 @@ extern char bb_common_bufsiz1[COMMON_BUFSIZE];
 /* ORCA/C will sometimes barf on the expression in ARRAY_SIZE, depending on the element type
  * (e.g. for arrays of structs).  When it does, use ARRAY_SIZE2 instead. */
 #define ARRAY_SIZE2(x, elttype) ((size_t)(sizeof(x) / sizeof(elttype)))
+#define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
 
 
 /* We redefine ctype macros. Unicode-correct handling of char types

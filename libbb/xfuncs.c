@@ -385,6 +385,12 @@ int FAST_FUNC get_terminal_width_height(int fd, unsigned *width, unsigned *heigh
 		*width = wh_helper(win.ws_col, 80, "COLUMNS", &err);
 	return err;
 }
+int FAST_FUNC get_terminal_width(int fd)
+{
+	unsigned width;
+	get_terminal_width_height(fd, &width, NULL);
+	return width;
+}
 
 #ifndef __GNO__
 int FAST_FUNC tcsetattr_stdin_TCSANOW(const struct termios *tp)
