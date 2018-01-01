@@ -830,59 +830,6 @@ int spawn_and_wait(char **argv) FAST_FUNC;
 /* Does NOT check that applet is NOFORK, just blindly runs it */
 int run_nofork_applet(int applet_no, char **argv) FAST_FUNC;
 
-/* Helpers for daemonization.
- *
- * bb_daemonize(flags) = daemonize, does not compile on NOMMU
- *
- * bb_daemonize_or_rexec(flags, argv) = daemonizes on MMU (and ignores argv),
- *      rexec's itself on NOMMU with argv passed as command line.
- * Thus bb_daemonize_or_rexec may cause your <applet>_main() to be re-executed
- * from the start. (It will detect it and not reexec again second time).
- * You have to audit carefully that you don't do something twice as a result
- * (opening files/sockets, parsing config files etc...)!
- *
- * Both of the above will redirect fd 0,1,2 to /dev/null and drop ctty
- * (will do setsid()).
- *
- * fork_or_rexec(argv) = bare-bones fork on MMU,
- *      "vfork + re-exec ourself" on NOMMU. No fd redirection, no setsid().
- *      On MMU ignores argv.
- *
- * Helper for network daemons in foreground mode:
- *
- * bb_sanitize_stdio() = make sure that fd 0,1,2 are opened by opening them
- * to /dev/null if they are not.
- */
-enum {
-	DAEMON_CHDIR_ROOT = 1,
-	DAEMON_DEVNULL_STDIO = 2,
-	DAEMON_CLOSE_EXTRA_FDS = 4,
-	DAEMON_ONLY_SANITIZE = 8, /* internal use */
-	DAEMON_DOUBLE_FORK = 16, /* double fork to avoid controlling tty */
-};
-#if BB_MMU
-# define fork_or_rexec(argv)                xfork()
-# define bb_daemonize_or_rexec(flags, argv) bb_daemonize_or_rexec(flags)
-# define bb_daemonize(flags)                bb_daemonize_or_rexec(flags, bogus)
-#else
-  /* Note: re_exec() and fork_or_rexec() do argv[0][0] |= 0x80 on NOMMU!
-   * _Parent_ needs to undo it if it doesn't want to have argv[0] mangled.
-   */
-  pid_t fork_or_rexec(char **argv) FAST_FUNC;
-  int  BUG_fork_is_unavailable_on_nommu(void) FAST_FUNC;
-  int  BUG_daemon_is_unavailable_on_nommu(void) FAST_FUNC;
-  void BUG_bb_daemonize_is_unavailable_on_nommu(void) FAST_FUNC;
-# define fork()          BUG_fork_is_unavailable_on_nommu()
-# define xfork()         BUG_fork_is_unavailable_on_nommu()
-# define daemon(a,b)     BUG_daemon_is_unavailable_on_nommu()
-# define bb_daemonize(a) BUG_bb_daemonize_is_unavailable_on_nommu()
-#endif
-void bb_daemonize_or_rexec(int flags, char **argv) FAST_FUNC;
-void bb_sanitize_stdio(void) FAST_FUNC;
-/* Clear dangerous stuff, set PATH. Return 1 if was run by different user. */
-int sanitize_env_if_suid(void) FAST_FUNC;
-
-
 pid_t vfork_and_run(void (*fn)(void*) NORETURN, void *arg);
 pid_t xvfork_and_run(void (*fn)(void*) NORETURN, void *arg);
 
@@ -971,62 +918,10 @@ void bb_displayroutes(int noresolve, int netstatfmt) FAST_FUNC;
 #endif
 
 
-/* Networking */
-/* This structure defines protocol families and their handlers. */
-struct aftype {
-	const char *name;
-	const char *title;
-	int af;
-	int alen;
-	char*       FAST_FUNC (*print)(unsigned char *);
-	const char* FAST_FUNC (*sprint)(struct sockaddr *, int numeric);
-	int         FAST_FUNC (*input)(/*int type,*/ const char *bufp, struct sockaddr *);
-	void        FAST_FUNC (*herror)(char *text);
-	int         FAST_FUNC (*rprint)(int options);
-	int         FAST_FUNC (*rinput)(int typ, int ext, char **argv);
-	/* may modify src */
-	int         FAST_FUNC (*getmask)(char *src, struct sockaddr *mask, char *name);
-};
-/* This structure defines hardware protocols and their handlers. */
-struct hwtype {
-	const char *name;
-	const char *title;
-	int type;
-	int alen;
-	char* FAST_FUNC (*print)(unsigned char *);
-	int   FAST_FUNC (*input)(const char *, struct sockaddr *);
-	int   FAST_FUNC (*activate)(int fd);
-	int suppress_null_addr;
-};
-int display_interfaces(char *ifname) FAST_FUNC;
-int in_ether(const char *bufp, struct sockaddr *sap) FAST_FUNC;
-#if ENABLE_FEATURE_HWIB
-int in_ib(const char *bufp, struct sockaddr *sap) FAST_FUNC;
-#else
-#define in_ib(a, b) 1 /* fail */
-#endif
-const struct aftype *get_aftype(const char *name) FAST_FUNC;
-const struct hwtype *get_hwtype(const char *name) FAST_FUNC;
-const struct hwtype *get_hwntype(int type) FAST_FUNC;
-
-
 #ifndef BUILD_INDIVIDUAL
 extern int find_applet_by_name(const char *name) FAST_FUNC;
 extern void run_applet_no_and_exit(int a, char **argv) NORETURN FAST_FUNC;
 #endif
-
-#ifdef HAVE_MNTENT_H
-extern int match_fstype(const struct mntent *mt, const char *fstypes) FAST_FUNC;
-extern struct mntent *find_mount_point(const char *name, int subdir_too) FAST_FUNC;
-#endif
-extern void erase_mtab(const char * name) FAST_FUNC;
-#if ENABLE_DESKTOP
-extern void bb_warn_ignoring_args(char *arg) FAST_FUNC;
-#else
-# define bb_warn_ignoring_args(arg) ((void)0)
-#endif
-
-extern int get_linux_version_code(void) FAST_FUNC;
 
 extern char *query_loop(const char *device) FAST_FUNC;
 extern int del_loop(const char *device) FAST_FUNC;
@@ -1039,24 +934,6 @@ int bb_ask_confirmation(void) FAST_FUNC;
 
 /* Returns -1 if input is invalid. current_mode is a base for e.g. "u+rw" */
 int bb_parse_mode(const char* s, unsigned cur_mode) FAST_FUNC;
-
-/*
- * Config file parser
- */
-typedef struct parser_t {
-	FILE *fp;
-	char *data;
-	char *line, *nline;
-	size_t line_alloc, nline_alloc;
-	int lineno;
-} parser_t;
-parser_t* config_open(const char *filename) FAST_FUNC;
-parser_t* config_open2(const char *filename, FILE* FAST_FUNC (*fopen_func)(const char *path)) FAST_FUNC;
-/* delims[0] is a comment char (use '\0' to disable), the rest are token delimiters */
-int config_read(parser_t *parser, char **tokens, unsigned flags, const char *delims) FAST_FUNC;
-#define config_read(parser, tokens, max, min, str, flags) \
-	config_read(parser, tokens, ((flags) | (((min) & 0xFF) << 8) | ((max) & 0xFF)), str)
-void config_close(parser_t *parser) FAST_FUNC;
 
 /* Concatenate path and filename to new allocated buffer.
  * Add "/" only as needed (no duplicate "//" are produced).
@@ -1089,62 +966,6 @@ extern void run_shell(const char *shell, int loginshell, const char *command, co
  * if there is a possibility of intervening getpwxxx() calls.
  */
 const char *get_shell_name(void) FAST_FUNC;
-
-#if ENABLE_SELINUX
-extern void renew_current_security_context(void) FAST_FUNC;
-extern void set_current_security_context(security_context_t sid) FAST_FUNC;
-extern context_t set_security_context_component(security_context_t cur_context,
-						char *user, char *role, char *type, char *range) FAST_FUNC;
-extern void setfscreatecon_or_die(security_context_t scontext) FAST_FUNC;
-extern void selinux_preserve_fcontext(int fdesc) FAST_FUNC;
-#else
-#define selinux_preserve_fcontext(fdesc) ((void)0)
-#endif
-extern void selinux_or_die(void) FAST_FUNC;
-
-
-/* setup_environment:
- * if chdir pw->pw_dir: ok: else if to_tmp == 1: goto /tmp else: goto / or die
- * if clear_env = 1: cd(pw->pw_dir), clear environment, then set
- *   TERM=(old value)
- *   USER=pw->pw_name, LOGNAME=pw->pw_name
- *   PATH=bb_default_[root_]path
- *   HOME=pw->pw_dir
- *   SHELL=shell
- * else if change_env = 1:
- *   if not root (if pw->pw_uid != 0):
- *     USER=pw->pw_name, LOGNAME=pw->pw_name
- *   HOME=pw->pw_dir
- *   SHELL=shell
- * else does nothing
- */
-#define SETUP_ENV_CHANGEENV (1 << 0)
-#define SETUP_ENV_CLEARENV  (1 << 1)
-#define SETUP_ENV_TO_TMP    (1 << 2)
-#define SETUP_ENV_NO_CHDIR  (1 << 4)
-void setup_environment(const char *shell, int flags, const struct passwd *pw) FAST_FUNC;
-void nuke_str(char *str) FAST_FUNC;
-int check_password(const struct passwd *pw, const char *plaintext) FAST_FUNC;
-int ask_and_check_password_extended(const struct passwd *pw, int timeout, const char *prompt) FAST_FUNC;
-int ask_and_check_password(const struct passwd *pw) FAST_FUNC;
-/* Returns a malloced string */
-#if !ENABLE_USE_BB_CRYPT
-#define pw_encrypt(clear, salt, cleanup) pw_encrypt(clear, salt)
-#endif
-extern char *pw_encrypt(const char *clear, const char *salt, int cleanup) FAST_FUNC;
-extern int obscure(const char *old, const char *newval, const struct passwd *pwdp) FAST_FUNC;
-/*
- * rnd is additional random input. New one is returned.
- * Useful if you call crypt_make_salt many times in a row:
- * rnd = crypt_make_salt(buf1, 4, 0);
- * rnd = crypt_make_salt(buf2, 4, rnd);
- * rnd = crypt_make_salt(buf3, 4, rnd);
- * (otherwise we risk having same salt generated)
- */
-extern int crypt_make_salt(char *p, int cnt /*, int rnd*/) FAST_FUNC;
-/* "$N$" + sha_salt_16_bytes + NUL */
-#define MAX_PW_SALT_LEN (3 + 16 + 1)
-extern char* crypt_make_pw_salt(char p[MAX_PW_SALT_LEN], const char *algo) FAST_FUNC;
 
 
 /* Returns number of lines changed, or -1 on error */
@@ -1345,29 +1166,6 @@ enum { COMM_LEN = 16 };
 # endif
 #endif
 
-struct smaprec {
-	unsigned long mapped_rw;
-	unsigned long mapped_ro;
-	unsigned long shared_clean;
-	unsigned long shared_dirty;
-	unsigned long private_clean;
-	unsigned long private_dirty;
-	unsigned long stack;
-	unsigned long smap_pss, smap_swap;
-	unsigned long smap_size;
-	unsigned long smap_start;
-	char smap_mode[5];
-	char *smap_name;
-};
-
-#if !ENABLE_PMAP
-#define procps_read_smaps(pid, total, cb, data) \
-	procps_read_smaps(pid, total)
-#endif
-int FAST_FUNC procps_read_smaps(pid_t pid, struct smaprec *total,
-		void (*cb)(struct smaprec *, void *), void *data);
-
-
 /* Format cmdline (up to col chars) into char buf[size] */
 /* Puts [comm] if cmdline is empty (-> process is a kernel thread) */
 void read_cmdline(char *buf, int size, unsigned pid, const char *comm) FAST_FUNC;
@@ -1385,10 +1183,6 @@ unsigned get_cpu_count(void) FAST_FUNC;
  */
 char *percent_decode_in_place(char *str, int strict) FAST_FUNC;
 
-
-uint32_t *crc32_filltable(uint32_t *tbl256, int endian) FAST_FUNC;
-uint32_t crc32_block_endian1(uint32_t val, const void *buf, unsigned len, uint32_t *crc_table) FAST_FUNC;
-uint32_t crc32_block_endian0(uint32_t val, const void *buf, unsigned len, uint32_t *crc_table) FAST_FUNC;
 
 typedef struct masks_labels_t {
 	const char *labels;
