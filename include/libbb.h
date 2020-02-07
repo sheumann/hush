@@ -725,7 +725,7 @@ void generate_uuid(uint8_t *buf) FAST_FUNC;
 /* Last element is marked by mult == 0 */
 struct suffix_mult {
 	char suffix[4];
-	unsigned mult;
+	unsigned long mult;
 };
 extern const struct suffix_mult bkm_suffixes[];
 #define km_suffixes (bkm_suffixes + 1)
